@@ -5,6 +5,6 @@ pytest-mock==3.14.0
 flake8==7.0.0
 black==24.3.0
 isort==5.13.2
-testcontainers[kafka,postgres]==4.4.0
+testcontainers[kafka,postgres,redis]==4.4.0
 freezegun==1.4.0
 fakeredis==2.23.2
