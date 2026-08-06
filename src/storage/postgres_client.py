@@ -9,16 +9,25 @@ concern isolated (Single Responsibility) and easy to mock in tests.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Iterable, Iterator, Optional
+from datetime import datetime, timezone
+from typing import Any, Iterable, Iterator, Optional
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.common.config import Settings, get_settings
 from src.common.logging_config import configure_logging
 from src.common.schemas import Transaction
-from src.storage.postgres_models import AuditLogRecord, Base, TransactionRecord
+from src.storage.postgres_models import (
+    AnalystFeedbackRecord,
+    AuditLogRecord,
+    Base,
+    ModelApprovalRecord,
+    PredictionRecord,
+    ReviewCaseRecord,
+    TransactionRecord,
+)
 
 logger = configure_logging("postgres_client")
 
@@ -80,6 +89,35 @@ class PostgresClient:
             result = session.execute(stmt)
             return result.rowcount or 0
 
+    def get_transaction(self, transaction_id: str) -> Optional[dict[str, Any]]:
+        """Fetch a previously persisted transaction, reconstructed as a
+        plain dict matching the `Transaction` schema's field names. Used by
+        the review UI to re-fetch a flagged transaction's full payload (the
+        review queue itself only stores the score, not the raw event) so it
+        can call `/explain` on it."""
+        with self.session() as session:
+            record = session.get(TransactionRecord, transaction_id)
+            if record is None:
+                return None
+            return {
+                "transaction_id": record.transaction_id,
+                "card_id": record.card_id,
+                "user_id": record.user_id,
+                "amount": record.amount,
+                "currency": record.currency,
+                "merchant_id": record.merchant_id,
+                "merchant_category": record.merchant_category,
+                "transaction_type": record.transaction_type,
+                "channel": record.channel,
+                "latitude": record.latitude,
+                "longitude": record.longitude,
+                "country": record.country,
+                "device_id": record.device_id,
+                "ip_address": record.ip_address,
+                "event_time": record.event_time.isoformat(),
+                "is_simulated_fraud": record.is_simulated_fraud,
+            }
+
     def write_audit_log(
         self,
         event_type: str,
@@ -96,3 +134,206 @@ class PostgresClient:
                     message=message,
                 )
             )
+
+    # -- Phase 2: prediction audit trail -----------------------------------
+
+    def write_prediction(
+        self,
+        transaction_id: str,
+        card_id: str,
+        model_name: str,
+        model_version: str,
+        input_features: dict,
+        fraud_score: float,
+        risk_level: str,
+        decision: str,
+        latency_ms: float,
+        model_source: str = "ml",
+        routed_to_review: bool = False,
+    ) -> str:
+        """Insert one immutable prediction audit row and return its id (used
+        to link a review case back to the exact prediction that created it)."""
+        record = PredictionRecord(
+            transaction_id=transaction_id,
+            card_id=card_id,
+            model_name=model_name,
+            model_version=model_version,
+            model_source=model_source,
+            input_features=input_features,
+            fraud_score=fraud_score,
+            risk_level=risk_level,
+            decision=decision,
+            routed_to_review=routed_to_review,
+            latency_ms=latency_ms,
+        )
+        with self.session() as session:
+            session.add(record)
+            session.flush()
+            return record.id
+
+    # -- Phase 2: human-in-the-loop review queue ----------------------------
+
+    def create_review_case(
+        self,
+        prediction_id: str,
+        transaction_id: str,
+        fraud_score: float,
+        risk_level: str,
+        reason: str,
+    ) -> str:
+        record = ReviewCaseRecord(
+            prediction_id=prediction_id,
+            transaction_id=transaction_id,
+            fraud_score=fraud_score,
+            risk_level=risk_level,
+            reason=reason,
+        )
+        with self.session() as session:
+            session.add(record)
+            session.flush()
+            return record.id
+
+    def list_review_cases(self, status: str = "pending", limit: int = 50) -> list[dict[str, Any]]:
+        with self.session() as session:
+            stmt = (
+                select(ReviewCaseRecord)
+                .where(ReviewCaseRecord.status == status)
+                .order_by(ReviewCaseRecord.created_at.desc())
+                .limit(limit)
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [
+                {
+                    "id": r.id,
+                    "prediction_id": r.prediction_id,
+                    "transaction_id": r.transaction_id,
+                    "fraud_score": r.fraud_score,
+                    "risk_level": r.risk_level,
+                    "reason": r.reason,
+                    "status": r.status,
+                    "assigned_analyst": r.assigned_analyst,
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in rows
+            ]
+
+    def get_review_case(self, case_id: str) -> Optional[dict[str, Any]]:
+        with self.session() as session:
+            record = session.get(ReviewCaseRecord, case_id)
+            if record is None:
+                return None
+            return {
+                "id": record.id,
+                "prediction_id": record.prediction_id,
+                "transaction_id": record.transaction_id,
+                "fraud_score": record.fraud_score,
+                "risk_level": record.risk_level,
+                "reason": record.reason,
+                "status": record.status,
+                "assigned_analyst": record.assigned_analyst,
+                "created_at": record.created_at.isoformat(),
+            }
+
+    def get_prediction(self, prediction_id: str) -> Optional[dict[str, Any]]:
+        with self.session() as session:
+            record = session.get(PredictionRecord, prediction_id)
+            if record is None:
+                return None
+            return {
+                "id": record.id,
+                "transaction_id": record.transaction_id,
+                "card_id": record.card_id,
+                "model_name": record.model_name,
+                "model_version": record.model_version,
+                "model_source": record.model_source,
+                "input_features": record.input_features,
+                "fraud_score": record.fraud_score,
+                "risk_level": record.risk_level,
+                "decision": record.decision,
+            }
+
+    def submit_feedback(
+        self,
+        case_id: str,
+        transaction_id: str,
+        analyst_id: str,
+        label: str,
+        notes: Optional[str] = None,
+    ) -> str:
+        """Record an analyst's ground-truth label and mark the case
+        resolved. This is the write path that produces retraining data."""
+        with self.session() as session:
+            feedback = AnalystFeedbackRecord(
+                case_id=case_id,
+                transaction_id=transaction_id,
+                analyst_id=analyst_id,
+                label=label,
+                notes=notes,
+            )
+            session.add(feedback)
+
+            case = session.get(ReviewCaseRecord, case_id)
+            if case is not None:
+                case.status = "resolved"
+                case.assigned_analyst = analyst_id
+                case.resolved_at = datetime.now(timezone.utc)
+
+            session.flush()
+            return feedback.id
+
+    def list_feedback(self, limit: int = 200) -> list[dict[str, Any]]:
+        """All analyst-labeled cases, newest first -- this is the export
+        surface a retraining job would pull from."""
+        with self.session() as session:
+            stmt = select(AnalystFeedbackRecord).order_by(AnalystFeedbackRecord.created_at.desc()).limit(limit)
+            rows = session.execute(stmt).scalars().all()
+            return [
+                {
+                    "id": r.id,
+                    "case_id": r.case_id,
+                    "transaction_id": r.transaction_id,
+                    "analyst_id": r.analyst_id,
+                    "label": r.label,
+                    "notes": r.notes,
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in rows
+            ]
+
+    # -- Phase 2: model governance -------------------------------------------
+
+    def record_model_approval(
+        self,
+        model_name: str,
+        model_version: str,
+        from_stage: str,
+        to_stage: str,
+        approved_by: str,
+        notes: Optional[str] = None,
+        metrics_snapshot: Optional[dict] = None,
+    ) -> str:
+        record = ModelApprovalRecord(
+            model_name=model_name,
+            model_version=model_version,
+            from_stage=from_stage,
+            to_stage=to_stage,
+            approved_by=approved_by,
+            notes=notes,
+            metrics_snapshot=metrics_snapshot,
+        )
+        with self.session() as session:
+            session.add(record)
+            session.flush()
+            return record.id
+
+    def has_approval(self, model_name: str, model_version: str, to_stage: str) -> bool:
+        """Gate used by `src.ml.registry.promote_model`: a stage transition
+        is only allowed if an explicit approval row already exists for this
+        exact (model_name, model_version, to_stage) tuple."""
+        with self.session() as session:
+            stmt = select(ModelApprovalRecord).where(
+                ModelApprovalRecord.model_name == model_name,
+                ModelApprovalRecord.model_version == model_version,
+                ModelApprovalRecord.to_stage == to_stage,
+            )
+            return session.execute(stmt).first() is not None

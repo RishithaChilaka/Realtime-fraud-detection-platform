@@ -38,3 +38,74 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS ix_audit_logs_event_type ON audit_logs (event_type);
 CREATE INDEX IF NOT EXISTS ix_audit_logs_transaction_id ON audit_logs (transaction_id);
 CREATE INDEX IF NOT EXISTS ix_audit_logs_created_at ON audit_logs (created_at);
+
+-- ---------------------------------------------------------------------------
+-- Phase 2: ML inference audit trail, human-in-the-loop review, and model
+-- governance. Mirrors src/storage/postgres_models.py.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS predictions (
+    id                UUID PRIMARY KEY,
+    transaction_id    VARCHAR(64) NOT NULL,
+    card_id           VARCHAR(64) NOT NULL,
+    model_name        VARCHAR(64) NOT NULL,
+    model_version     VARCHAR(32) NOT NULL,
+    model_source      VARCHAR(16) NOT NULL DEFAULT 'ml',
+    input_features    JSONB NOT NULL,
+    fraud_score       DOUBLE PRECISION NOT NULL,
+    risk_level        VARCHAR(16) NOT NULL,
+    decision          VARCHAR(16) NOT NULL,
+    routed_to_review  BOOLEAN NOT NULL DEFAULT FALSE,
+    latency_ms        DOUBLE PRECISION NOT NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_predictions_transaction_id ON predictions (transaction_id);
+CREATE INDEX IF NOT EXISTS ix_predictions_card_id ON predictions (card_id);
+CREATE INDEX IF NOT EXISTS ix_predictions_created_at ON predictions (created_at);
+
+CREATE TABLE IF NOT EXISTS review_cases (
+    id                 UUID PRIMARY KEY,
+    prediction_id      UUID NOT NULL,
+    transaction_id     VARCHAR(64) NOT NULL,
+    fraud_score        DOUBLE PRECISION NOT NULL,
+    risk_level         VARCHAR(16) NOT NULL,
+    reason             VARCHAR(256) NOT NULL,
+    status             VARCHAR(16) NOT NULL DEFAULT 'pending',
+    assigned_analyst   VARCHAR(64),
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resolved_at        TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS ix_review_cases_prediction_id ON review_cases (prediction_id);
+CREATE INDEX IF NOT EXISTS ix_review_cases_transaction_id ON review_cases (transaction_id);
+CREATE INDEX IF NOT EXISTS ix_review_cases_status ON review_cases (status);
+CREATE INDEX IF NOT EXISTS ix_review_cases_created_at ON review_cases (created_at);
+
+CREATE TABLE IF NOT EXISTS analyst_feedback (
+    id               UUID PRIMARY KEY,
+    case_id          UUID NOT NULL,
+    transaction_id   VARCHAR(64) NOT NULL,
+    analyst_id       VARCHAR(64) NOT NULL,
+    label            VARCHAR(24) NOT NULL,
+    notes            VARCHAR(1024),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_analyst_feedback_case_id ON analyst_feedback (case_id);
+CREATE INDEX IF NOT EXISTS ix_analyst_feedback_transaction_id ON analyst_feedback (transaction_id);
+CREATE INDEX IF NOT EXISTS ix_analyst_feedback_created_at ON analyst_feedback (created_at);
+
+CREATE TABLE IF NOT EXISTS model_approvals (
+    id                  UUID PRIMARY KEY,
+    model_name          VARCHAR(64) NOT NULL,
+    model_version       VARCHAR(32) NOT NULL,
+    from_stage          VARCHAR(16) NOT NULL,
+    to_stage            VARCHAR(16) NOT NULL,
+    approved_by         VARCHAR(64) NOT NULL,
+    notes               VARCHAR(1024),
+    metrics_snapshot    JSONB,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_model_approvals_name_version ON model_approvals (model_name, model_version);
