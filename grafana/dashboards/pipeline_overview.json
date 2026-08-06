@@ -1,0 +1,56 @@
+{
+  "title": "Fraud Pipeline Overview",
+  "uid": "fraud-pipeline-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Producer Throughput (msgs/sec)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "rate(fraud_producer_messages_total[1m])", "legendFormat": "published/sec" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Stream Batch Latency (p95)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(fraud_stream_batch_latency_seconds_bucket[5m]))",
+          "legendFormat": "p95 batch latency"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Feature Store Read Latency (p95, ms)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "1000 * histogram_quantile(0.95, rate(fraud_feature_store_read_latency_seconds_bucket[5m]))",
+          "legendFormat": "p95 read (ms)"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Pipeline Lag (seconds)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "fraud_pipeline_lag_seconds", "legendFormat": "lag" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Validation Failures",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "rate(fraud_stream_validation_failures_total[5m])", "legendFormat": "failures/sec" }
+      ]
+    }
+  ]
+}
