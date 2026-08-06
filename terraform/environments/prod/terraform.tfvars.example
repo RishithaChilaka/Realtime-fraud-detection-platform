@@ -1,0 +1,26 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored
+# (see terraform/.gitignore) -- these values aren't secret themselves, but
+# keeping real account-specific values out of git is good hygiene.
+
+aws_region  = "us-east-1"
+name_prefix = "fraud-detection"
+
+# Must already exist: a Route53-registered domain (or delegated subdomain)
+# and an ACM certificate covering *.<domain_name>, issued in aws_region
+# (ALB certs are regional).
+domain_name          = "fraud.example.com"
+acm_certificate_arn  = "arn:aws:acm:us-east-1:123456789012:certificate/CHANGE-ME"
+
+# Optional: if set, Terraform creates alias A records for each public
+# service (api.<domain>, review.<domain>, ...). If left null, point your
+# own DNS at the `alb_dns_name` output instead.
+route53_zone_id = null
+
+github_repository = "RishithaChilaka/Realtime-fraud-detection-platform"
+
+image_tag = "latest" # CI/CD manages real deploys after this; see ecs module notes
+
+single_nat_gateway = true # false for multi-AZ NAT (more HA, more cost)
+rds_multi_az       = true
+redis_num_nodes    = 2
+msk_broker_count   = 2
