@@ -1,0 +1,132 @@
+# Deploys to AWS after CI (ci.yml) passes on main. Two stages:
+#   1. build-and-push: build each service image, push to ECR tagged with
+#      the commit SHA (immutable tags -- see terraform/modules/ecr).
+#   2. deploy: for every ECS service, fetch its current task definition,
+#      swap in the new image, register a new revision, and update the
+#      service -- exactly the workflow terraform/modules/ecs's
+#      `lifecycle { ignore_changes = [task_definition] }` was built for.
+#
+# Auth is via GitHub OIDC (no static AWS keys): the role assumed here is
+# provisioned by terraform/modules/iam (`github_deploy_role_arn` output).
+#
+# Required repo configuration (Settings -> Secrets and variables -> Actions):
+#   Variables (not secret, but repo-specific):
+#     AWS_DEPLOY_ROLE_ARN   - terraform output github_deploy_role_arn
+#     AWS_REGION            - matches terraform's aws_region (default us-east-1)
+#     NAME_PREFIX           - matches terraform's name_prefix (default fraud-detection)
+#     ECS_CLUSTER_NAME      - terraform output ecs_cluster_name
+#     AWS_ACCOUNT_ID        - the account terraform applied into (for the ECR registry URI)
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {} # allow manual re-deploy of the current main without a new commit
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  NAME_PREFIX: ${{ vars.NAME_PREFIX || 'fraud-detection' }}
+
+jobs:
+  build-and-push:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [producer, consumer, api, training, streamlit]
+    outputs:
+      image_tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Compute image tag (commit SHA -- ECR repos are IMMUTABLE)
+        id: tag
+        run: echo "tag=${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (GitHub OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/${{ env.NAME_PREFIX }}/${{ matrix.service }}:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    strategy:
+      # Maps each ECS service (task def family "<NAME_PREFIX>-<service_key>",
+      # matching terraform/modules/ecs's naming) to the ECR repo/image it
+      # runs. airflow-webserver and airflow-scheduler both run the
+      # `training` image (see environments/prod/main.tf's `services` local
+      # and terraform/README.md's ECR layout note).
+      matrix:
+        include:
+          - service_key: api
+            image_repo: api
+          - service_key: review-ui
+            image_repo: streamlit
+          - service_key: producer
+            image_repo: producer
+          - service_key: consumer
+            image_repo: consumer
+          - service_key: airflow-webserver
+            image_repo: training
+          - service_key: airflow-scheduler
+            image_repo: training
+      # One service's deploy failing (e.g. a bad health check) shouldn't
+      # block rolling the rest out.
+      fail-fast: false
+    steps:
+      - name: Configure AWS credentials (GitHub OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download current task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "${{ env.NAME_PREFIX }}-${{ matrix.service_key }}" \
+            --query taskDefinition > task-def.json
+
+      - name: Render new image into task definition
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-def.json
+          container-name: ${{ matrix.service_key }}
+          image: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.NAME_PREFIX }}/${{ matrix.image_repo }}:${{ needs.build-and-push.outputs.image_tag }}
+
+      - name: Deploy new task definition to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          service: ${{ env.NAME_PREFIX }}-${{ matrix.service_key }}
+          cluster: ${{ vars.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
