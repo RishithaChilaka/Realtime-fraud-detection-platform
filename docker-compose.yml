@@ -14,6 +14,11 @@ x-common-env: &common-env
   REDIS_HOST: redis
   REDIS_PORT: "6379"
   PROMETHEUS_PORT: "8000"
+  MLFLOW_TRACKING_URI: http://mlflow:5000
+  MLFLOW_EXPERIMENT_NAME: fraud-detection
+  MLFLOW_XGBOOST_MODEL_NAME: fraud_xgboost
+  MLFLOW_LIGHTGBM_MODEL_NAME: fraud_lightgbm
+  MLFLOW_ACTIVE_MODEL_NAME: fraud_xgboost
 
 services:
   # --- Streaming backbone ---
@@ -133,6 +138,77 @@ services:
     ports:
       - "8002:8000"
 
+  # --- ML: tracking + registry ---
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.11.3
+    container_name: fraud-mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    volumes:
+      - mlflow-data:/mlflow
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000')"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # One-off training job. Not started by `docker compose up`; run explicitly
+  # with `docker compose --profile training run --rm training` after mlflow
+  # and postgres are up, whenever you want to (re)train and register models.
+  training:
+    build:
+      context: .
+      dockerfile: docker/training/Dockerfile
+    container_name: fraud-training
+    profiles: ["training"]
+    environment:
+      <<: *common-env
+    depends_on:
+      mlflow:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  # --- Real-time inference API ---
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    container_name: fraud-api
+    environment:
+      <<: *common-env
+      API_HOST: "0.0.0.0"
+      API_PORT: "8080"
+    depends_on:
+      mlflow:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  # --- Analyst review UI ---
+  review-ui:
+    build:
+      context: .
+      dockerfile: docker/streamlit/Dockerfile
+    container_name: fraud-review-ui
+    environment:
+      <<: *common-env
+      FRAUD_API_BASE_URL: http://api:8080
+    depends_on:
+      - api
+    ports:
+      - "8501:8501"
+
   # --- Observability ---
   prometheus:
     image: prom/prometheus:v2.51.2
@@ -165,3 +241,4 @@ volumes:
   redis-data:
   prometheus-data:
   grafana-data:
+  mlflow-data:
