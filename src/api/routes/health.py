@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
+from src.api.auth import require_role
 from src.api.dependencies import get_model_state
 from src.api.inference import ModelState
 from src.api.schemas import HealthResponse
@@ -15,6 +16,8 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health", response_model=HealthResponse)
 def health(model_state: ModelState = Depends(get_model_state)) -> HealthResponse:
+    # Deliberately unauthenticated: load balancer / ECS / k8s health checks
+    # need to hit this without a token.
     return HealthResponse(
         status="ok" if model_state.is_model_available else "degraded",
         model_loaded=model_state.is_model_available,
@@ -24,9 +27,14 @@ def health(model_state: ModelState = Depends(get_model_state)) -> HealthResponse
     )
 
 
-@router.post("/admin/reload-model", response_model=HealthResponse)
+@router.post(
+    "/admin/reload-model",
+    response_model=HealthResponse,
+    dependencies=[Depends(require_role("admin"))],
+)
 def reload_model(model_state: ModelState = Depends(get_model_state)) -> HealthResponse:
     """Re-check the MLflow registry for a newer Production version without
-    restarting the process -- called after `scripts/promote_model.py`."""
+    restarting the process -- called after `scripts/promote_model.py`.
+    Admin-only: this changes what every subsequent request is scored by."""
     model_state.reload()
     return health(model_state)

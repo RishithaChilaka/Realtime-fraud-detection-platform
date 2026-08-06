@@ -24,10 +24,60 @@ st.set_page_config(page_title="Fraud Review Queue", layout="wide")
 st.title("Fraud Detection — Analyst Review Queue")
 st.caption(f"API: {API_BASE_URL}")
 
+if "access_token" not in st.session_state:
+    st.session_state.access_token = None
+    st.session_state.role = None
+
+
+def _auth_headers() -> dict:
+    if st.session_state.access_token:
+        return {"Authorization": f"Bearer {st.session_state.access_token}"}
+    return {}
+
+
+def login(username: str, password: str) -> bool:
+    try:
+        resp = requests.post(
+            f"{API_BASE_URL}/auth/token", json={"username": username, "password": password}, timeout=5
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        st.session_state.access_token = body["access_token"]
+        st.session_state.role = body["role"]
+        return True
+    except requests.RequestException as exc:
+        st.error(f"Login failed: {exc}")
+        return False
+
+
+if not st.session_state.access_token:
+    st.info(
+        "The review queue is role-protected (analyst/admin). Demo credentials: "
+        "`analyst1` / `analyst-demo-pass` -- see src/api/auth.py."
+    )
+    with st.form("login"):
+        username = st.text_input("Username", value="analyst1")
+        password = st.text_input("Password", value="analyst-demo-pass", type="password")
+        if st.form_submit_button("Log in") and login(username, password):
+            st.rerun()
+    st.stop()
+
+st.caption(f"Logged in as **{st.session_state.role}**")
+if st.sidebar.button("Log out"):
+    st.session_state.access_token = None
+    st.session_state.role = None
+    st.rerun()
+
 
 @st.cache_data(ttl=5)
-def fetch_queue(status: str, limit: int) -> list[dict]:
-    resp = requests.get(f"{API_BASE_URL}/review", params={"status": status, "limit": limit}, timeout=5)
+def fetch_queue(status: str, limit: int, auth_token: str) -> list[dict]:
+    # `auth_token` is part of the cache key (Streamlit hashes every
+    # non-underscore-prefixed arg) so switching users invalidates the
+    # cached queue instead of leaking the previous analyst's cached view.
+    headers = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
+    resp = requests.get(
+        f"{API_BASE_URL}/review", params={"status": status, "limit": limit}, headers=headers, timeout=5
+    )
     resp.raise_for_status()
     return resp.json()
 
@@ -56,6 +106,7 @@ def submit_feedback(case_id: str, analyst_id: str, label: str, notes: str) -> bo
         resp = requests.post(
             f"{API_BASE_URL}/review/{case_id}/feedback",
             json={"analyst_id": analyst_id, "label": label, "notes": notes},
+            headers=_auth_headers(),
             timeout=5,
         )
         resp.raise_for_status()
@@ -74,7 +125,7 @@ with st.sidebar:
         fetch_queue.clear()
 
 try:
-    cases = fetch_queue(status_filter, limit)
+    cases = fetch_queue(status_filter, limit, st.session_state.access_token)
 except requests.RequestException as exc:
     st.error(f"Could not reach the fraud API at {API_BASE_URL}: {exc}")
     st.stop()

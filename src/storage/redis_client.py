@@ -19,6 +19,11 @@ class RedisClient:
                 host=self.settings.redis_host,
                 port=self.settings.redis_port,
                 db=self.settings.redis_db,
+                # Local docker-compose Redis has no AUTH/TLS (empty
+                # token -> `password=None`, `ssl=False`); ElastiCache in
+                # production requires both -- see terraform/modules/elasticache.
+                password=self.settings.redis_auth_token or None,
+                ssl=self.settings.redis_use_tls,
                 decode_responses=True,
                 max_connections=50,
             )

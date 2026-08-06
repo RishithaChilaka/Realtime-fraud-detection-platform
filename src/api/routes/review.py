@@ -6,12 +6,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from src.api.auth import require_role
 from src.api.dependencies import get_postgres_client
 from src.api.schemas import FeedbackRequest, FeedbackResponse, ReviewCase
 from src.monitoring.metrics import REVIEW_QUEUE_DEPTH
 from src.storage.postgres_client import PostgresClient
 
-router = APIRouter(tags=["review"])
+router = APIRouter(tags=["review"], dependencies=[Depends(require_role("analyst", "admin"))])
 
 
 @router.get("/review", response_model=list[ReviewCase])

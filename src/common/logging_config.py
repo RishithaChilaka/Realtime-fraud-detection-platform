@@ -4,6 +4,8 @@ import sys
 
 import structlog
 
+from src.common.pii import redact_pii_processor
+
 
 def configure_logging(service_name: str, level: int = logging.INFO) -> structlog.BoundLogger:
     logging.basicConfig(format="%(message)s", stream=sys.stdout, level=level)
@@ -15,6 +17,9 @@ def configure_logging(service_name: str, level: int = logging.INFO) -> structlog
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
+            # PII masking runs on every log line, for every service, before
+            # rendering -- see src/common/pii.py for what gets masked and why.
+            redact_pii_processor,
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(level),

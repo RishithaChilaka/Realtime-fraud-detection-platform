@@ -15,6 +15,8 @@ from fastapi import FastAPI
 from prometheus_client import make_asgi_app
 
 from src.api.inference import ModelState
+from src.api.middleware import MetricsAndAccessLogMiddleware
+from src.api.routes import auth as auth_routes
 from src.api.routes import explain, health, review, score, transactions
 from src.common.config import get_settings
 from src.common.logging_config import configure_logging
@@ -48,12 +50,23 @@ app = FastAPI(
     description=(
         "Real-time credit-card fraud scoring: /score for a fraud "
         "probability + risk decision, /explain for SHAP feature "
-        "attributions, /review for the analyst case queue."
+        "attributions, /review for the analyst case queue.\n\n"
+        "Interactive docs (Swagger UI) are auto-generated from this schema "
+        "at `/docs`; machine-readable OpenAPI JSON at `/openapi.json`.\n\n"
+        "Authentication: `POST /auth/token` with a service/analyst/admin "
+        "identity to get a JWT, then `Authorization: Bearer <token>` on "
+        "role-protected endpoints (`/review/*`, `/admin/*`) -- see "
+        "`src/api/auth.py`. `/score` and `/explain` are unauthenticated by "
+        "default (service-to-service calls from the streaming pipeline); "
+        "see the README's security section for the production posture."
     ),
-    version="2.0.0",
+    version="3.0.0",
     lifespan=lifespan,
 )
 
+app.add_middleware(MetricsAndAccessLogMiddleware)
+
+app.include_router(auth_routes.router)
 app.include_router(score.router)
 app.include_router(explain.router)
 app.include_router(review.router)
