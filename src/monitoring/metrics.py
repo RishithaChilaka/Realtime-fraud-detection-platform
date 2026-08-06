@@ -43,6 +43,34 @@ PIPELINE_LAG_SECONDS = Gauge(
     "fraud_pipeline_lag_seconds", "Observed lag between event_time and processing_time"
 )
 
+# --- Phase 2: inference API metrics ---
+SCORE_REQUESTS = Counter(
+    "fraud_score_requests_total",
+    "Total /score requests",
+    labelnames=("model_source", "decision"),
+)
+SCORE_LATENCY = Histogram(
+    "fraud_score_latency_seconds",
+    "End-to-end /score handler latency (feature lookup + model + audit write)",
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0),
+)
+EXPLAIN_LATENCY = Histogram(
+    "fraud_explain_latency_seconds",
+    "End-to-end /explain handler latency",
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0),
+)
+SHAP_COMPUTE_LATENCY = Histogram(
+    "fraud_shap_compute_latency_seconds",
+    "Time spent inside shap.TreeExplainer.shap_values for a single row",
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25),
+)
+REVIEW_QUEUE_DEPTH = Gauge(
+    "fraud_review_queue_depth", "Number of pending cases in the analyst review queue"
+)
+MODEL_AVAILABLE = Gauge(
+    "fraud_model_available", "1 if a Production ML model is loaded, 0 if running on fallback rules"
+)
+
 
 def start_metrics_server(port: int) -> None:
     """Expose the process-local Prometheus registry over HTTP for scraping."""
