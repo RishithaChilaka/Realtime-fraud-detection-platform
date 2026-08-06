@@ -18,11 +18,11 @@ produce a real report:
 
 ```bash
 docker compose up -d --build
-# wait for `curl http://localhost:8080/health` to return 200
+# wait for `curl http://localhost:8090/health` to return 200
 
 pip install -r requirements-dev.txt
 mkdir -p loadtest/results
-locust -f loadtest/locustfile.py --host http://localhost:8080 \
+locust -f loadtest/locustfile.py --host http://localhost:8090 \
     --users 500 --spawn-rate 50 --run-time 3m --headless \
     --csv loadtest/results/run1
 

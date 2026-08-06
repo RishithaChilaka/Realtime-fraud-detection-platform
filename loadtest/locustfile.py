@@ -6,7 +6,7 @@ p95 < 100ms.
 Run against a live stack (`docker compose up -d`, wait for `/health` to
 report a loaded model or fallback):
 
-    locust -f loadtest/locustfile.py --host http://localhost:8080 \\
+    locust -f loadtest/locustfile.py --host http://localhost:8090 \\
         --users 500 --spawn-rate 50 --run-time 3m --headless \\
         --csv loadtest/results/run1
 
