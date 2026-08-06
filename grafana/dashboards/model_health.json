@@ -1,0 +1,81 @@
+{
+  "title": "Fraud Model Health — Predictions, Drift, FP/FN",
+  "uid": "fraud-model-health",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Prediction score distribution (p50/p95, business window)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "fraud_business_score_p50", "legendFormat": "p50 score" },
+        { "expr": "fraud_business_score_p95", "legendFormat": "p95 score" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Decision mix (block / review / approve rate)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "fraud_business_block_rate", "legendFormat": "block" },
+        { "expr": "fraud_business_review_rate", "legendFormat": "review" },
+        { "expr": "fraud_business_approve_rate", "legendFormat": "approve" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Drift: max PSI across features + score (>0.25 = major shift)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "fraud_drift_max_psi", "legendFormat": "{{job}}" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Drift: number of features flagged as drifted",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "fraud_drift_drifted_feature_count", "legendFormat": "{{job}}" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Score distribution drift (KS p-value, PSI)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "fraud_drift_score_ks_p_value", "legendFormat": "{{job}} KS p-value" },
+        { "expr": "fraud_drift_score_psi", "legendFormat": "{{job}} score PSI" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Analyst-confirmed false positive / false negative rate",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        { "expr": "fraud_business_false_positive_rate", "legendFormat": "false positive rate" },
+        { "expr": "fraud_business_false_negative_rate", "legendFormat": "false negative rate" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Any drift detected right now",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 24 },
+      "targets": [{ "expr": "max(fraud_drift_any_detected)" }]
+    },
+    {
+      "type": "stat",
+      "title": "Fraction of scores from rule-based fallback (not ML)",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 24 },
+      "targets": [{ "expr": "fraud_business_fallback_rate" }]
+    },
+    {
+      "type": "stat",
+      "title": "Analyst feedback sample size (window)",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 24 },
+      "targets": [{ "expr": "fraud_business_feedback_sample_size" }]
+    }
+  ]
+}

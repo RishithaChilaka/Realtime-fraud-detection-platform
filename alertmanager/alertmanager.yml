@@ -1,0 +1,68 @@
+# Routes alerts from prometheus/alert_rules.yml to the right team, by the
+# `team` label each rule sets (ml / sre / analysts).
+#
+# Receivers below use a generic `webhook_configs` placeholder
+# (https://example.com/webhook/...) so this config is valid and runnable
+# out of the box without real Slack/PagerDuty credentials. To wire up
+# real notifications, replace each receiver's `webhook_configs` with
+# `slack_configs` (needs `api_url` from a Slack incoming webhook) and/or
+# `email_configs` (needs `smtp_smarthost`/`smtp_from` under `global`), or
+# point `webhook_configs.url` at a real endpoint (e.g. an internal
+# Slack-bridge service, PagerDuty Events API v2 proxy, etc.). In the AWS
+# deployment (terraform/), these values come from Secrets Manager -- see
+# terraform/modules/secrets/main.tf.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: ["alertname", "team"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: ["team = ml"]
+      receiver: ml-team
+    - matchers: ["team = sre"]
+      receiver: sre-team
+      routes:
+        - matchers: ["severity = critical"]
+          receiver: sre-team-critical
+          repeat_interval: 30m
+    - matchers: ["team = analysts"]
+      receiver: analyst-team
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: "http://localhost:5001/webhook/default"
+        send_resolved: true
+
+  - name: ml-team
+    webhook_configs:
+      - url: "http://localhost:5001/webhook/ml-team"
+        send_resolved: true
+
+  - name: sre-team
+    webhook_configs:
+      - url: "http://localhost:5001/webhook/sre-team"
+        send_resolved: true
+
+  - name: sre-team-critical
+    webhook_configs:
+      - url: "http://localhost:5001/webhook/sre-team-critical"
+        send_resolved: true
+
+  - name: analyst-team
+    webhook_configs:
+      - url: "http://localhost:5001/webhook/analyst-team"
+        send_resolved: true
+
+inhibit_rules:
+  # Don't page SRE for latency if the model's already known to be down and
+  # serving fallback -- that's a separate, already-firing alert, and the
+  # latency spike is very likely a symptom of the same root cause.
+  - source_matchers: ["alertname = ModelUnavailableFallbackActive"]
+    target_matchers: ["alertname = HighAPILatency"]
+    equal: ["team"]

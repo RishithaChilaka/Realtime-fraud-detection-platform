@@ -1,0 +1,77 @@
+{
+  "title": "Fraud Detection — Business Metrics",
+  "uid": "fraud-business-metrics",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Review queue: pending",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "fraud_review_queue_pending" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Review queue: in review",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [{ "expr": "fraud_review_queue_in_review" }]
+    },
+    {
+      "type": "stat",
+      "title": "Fraud detection rate (block rate, 24h)",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "targets": [{ "expr": "fraud_business_block_rate" }]
+    },
+    {
+      "type": "stat",
+      "title": "Total predictions (window)",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [{ "expr": "fraud_business_total_predictions" }]
+    },
+    {
+      "type": "graph",
+      "title": "Review queue depth over time",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        { "expr": "fraud_review_queue_pending", "legendFormat": "pending" },
+        { "expr": "fraud_review_queue_in_review", "legendFormat": "in review" },
+        { "expr": "fraud_review_queue_depth", "legendFormat": "pending (live, from GET /review)" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Fraud detection rate (block rate) over time",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "targets": [{ "expr": "fraud_business_block_rate", "legendFormat": "block rate" }]
+    },
+    {
+      "type": "graph",
+      "title": "Analyst throughput (feedback submitted per window)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "targets": [{ "expr": "fraud_business_feedback_sample_size", "legendFormat": "feedback rows" }]
+    },
+    {
+      "type": "graph",
+      "title": "False positive / false negative rate",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "targets": [
+        { "expr": "fraud_business_false_positive_rate", "legendFormat": "false positive rate" },
+        { "expr": "fraud_business_false_negative_rate", "legendFormat": "false negative rate" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+groups:
+  - name: fraud-detection-ml
+    rules:
+      - alert: HighModelDrift
+        # fraud_drift_any_detected is pushed by src/ml/drift.py::push_drift_metrics
+        # via dags/drift_detection_dag.py, every 6 hours per model.
+        expr: fraud_drift_any_detected == 1
+        for: 0m
+        labels:
+          severity: warning
+          team: ml
+        annotations:
+          summary: "Feature or score drift detected for {{ $labels.job }}"
+          description: >
+            drift_detection_dag flagged drift (max_psi={{ $labels.max_psi }}) in the last run.
+            retrain_pipeline and automated_promotion have already been triggered automatically
+            if ENABLE_AUTOMATED_PROMOTION is set; check the model_approvals audit table and
+            model_cards/ for the outcome. Notify: ML team.
+
+      - alert: HighModelDriftSustained
+        # A stricter companion rule: drift detected on two consecutive
+        # 6-hourly checks (12h) is a stronger signal than a single blip.
+        expr: fraud_drift_any_detected == 1
+        for: 6h
+        labels:
+          severity: critical
+          team: ml
+        annotations:
+          summary: "Sustained model drift for {{ $labels.job }} (12h+)"
+          description: >
+            Drift has been detected across multiple consecutive checks. If automated promotion
+            hasn't resolved this, a human should review model_cards/ and consider manual
+            retraining/promotion via scripts/promote_model.py.
+
+  - name: fraud-detection-api
+    rules:
+      - alert: HighAPILatency
+        # Deliberately alerts at 200ms even though the Phase 2 design target
+        # is <100ms p95 -- this rule is the "something's wrong" SRE trip
+        # wire, set above the target so normal variance doesn't page anyone;
+        # see loadtest/load_test_report.md for the target itself.
+        expr: histogram_quantile(0.95, rate(fraud_score_latency_seconds_bucket[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "/score p95 latency above 200ms"
+          description: >
+            p95 latency for /score has been above 200ms for 5+ minutes. Check
+            fraud_postgres_write_latency_seconds and fraud_feature_store_read_latency_seconds
+            in Grafana's API SLO dashboard to isolate whether it's the DB write, Redis read, or
+            model inference. Notify: SRE.
+
+      - alert: HighAPIErrorRate
+        # fraud_api_requests_total{path,status_class} is emitted by
+        # src/api/middleware.py::MetricsAndAccessLogMiddleware for every
+        # request/response, regardless of route -- unlike
+        # fraud_score_requests_total (which only increments on a
+        # successful /score decision and therefore never has a
+        # meaningful "error" label), this one is a real error-rate signal.
+        expr: |
+          (
+            sum(rate(fraud_api_requests_total{status_class="5xx"}[5m]))
+            /
+            sum(rate(fraud_api_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "Elevated API error rate"
+          description: "More than 5% of API requests have returned a 5xx in the last 5 minutes."
+
+      - alert: ModelUnavailableFallbackActive
+        expr: fraud_model_available == 0
+        for: 2m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Fraud API is serving from rule-based fallback, not the ML model"
+          description: >
+            No Production model could be loaded from MLflow. The API is still answering
+            requests via src/api/fallback.py, but with materially different precision/recall.
+            Check MLflow reachability and /health.
+
+  - name: fraud-detection-business
+    rules:
+      - alert: ReviewQueueBacklog
+        # fraud_review_queue_pending is pushed by
+        # src/monitoring/business_metrics.py via dags/business_metrics_dag.py
+        # every 5 minutes (fraud_review_queue_depth is the same signal,
+        # updated live whenever GET /review is called -- either metric
+        # tripping this is meaningful).
+        expr: fraud_review_queue_pending > 100 or fraud_review_queue_depth > 100
+        for: 10m
+        labels:
+          severity: warning
+          team: analysts
+        annotations:
+          summary: "Analyst review queue backlog > 100 cases"
+          description: >
+            The pending review queue has been over 100 cases for 10+ minutes. Consider
+            temporarily raising risk_high_threshold/risk_low_threshold to reduce review volume,
+            or adding analyst capacity. Notify: analyst team lead.
+
+      - alert: ElevatedFalsePositiveRate
+        expr: fraud_business_false_positive_rate > 0.30
+        for: 30m
+        labels:
+          severity: warning
+          team: ml
+        annotations:
+          summary: "Analyst-confirmed false positive rate above 30%"
+          description: >
+            Over the last business-metrics window, 30%+ of analyst-labeled cases were false
+            positives. See the runbook's "high false positive rate" section in README.md.
+
+  - name: fraud-detection-streaming
+    rules:
+      - alert: KafkaConsumerLagHigh
+        # kafka_consumergroup_lag_sum from danielqsj/kafka-exporter.
+        expr: sum(kafka_consumergroup_lag_sum{topic="transactions.raw"}) > 50000
+        for: 5m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Kafka consumer lag > 50k messages on transactions.raw"
+          description: >
+            The Spark consumer is falling behind the producer. See the runbook's "Kafka lag"
+            section in README.md -- check Spark UI (:8080) for stalled/failed micro-batches
+            before scaling spark-worker replicas.

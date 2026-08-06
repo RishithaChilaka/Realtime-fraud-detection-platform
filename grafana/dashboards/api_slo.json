@@ -1,0 +1,107 @@
+{
+  "title": "Fraud API — SLO & System Health",
+  "uid": "fraud-api-slo",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "/score p95 latency (ms) — alert threshold 200ms",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "1000 * histogram_quantile(0.95, rate(fraud_score_latency_seconds_bucket[5m]))",
+          "legendFormat": "p95 /score"
+        },
+        {
+          "expr": "1000 * histogram_quantile(0.50, rate(fraud_score_latency_seconds_bucket[5m]))",
+          "legendFormat": "p50 /score"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "/explain p95 latency (ms) — SHAP compute portion",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "1000 * histogram_quantile(0.95, rate(fraud_explain_latency_seconds_bucket[5m]))",
+          "legendFormat": "p95 /explain total"
+        },
+        {
+          "expr": "1000 * histogram_quantile(0.95, rate(fraud_shap_compute_latency_seconds_bucket[5m]))",
+          "legendFormat": "p95 SHAP compute only"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Request rate by endpoint",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "sum by (path) (rate(fraud_api_requests_total[1m]))", "legendFormat": "{{path}}" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Error rate (5xx / total, by path)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (path) (rate(fraud_api_requests_total{status_class=\"5xx\"}[5m])) / sum by (path) (rate(fraud_api_requests_total[5m]))",
+          "legendFormat": "{{path}} error rate"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Kafka consumer lag (transactions.raw)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "sum(kafka_consumergroup_lag_sum{topic=\"transactions.raw\"})", "legendFormat": "lag (messages)" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Spark micro-batch throughput & latency",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        { "expr": "rate(fraud_stream_batch_records_sum[1m])", "legendFormat": "records/sec" },
+        {
+          "expr": "histogram_quantile(0.95, rate(fraud_stream_batch_latency_seconds_bucket[5m]))",
+          "legendFormat": "p95 batch latency (s)"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Model availability (1 = serving ML model, 0 = fallback)",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 24 },
+      "targets": [{ "expr": "fraud_model_available" }]
+    },
+    {
+      "type": "stat",
+      "title": "Pipeline lag (event_time -> processed, seconds)",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 24 },
+      "targets": [{ "expr": "fraud_pipeline_lag_seconds" }]
+    },
+    {
+      "type": "stat",
+      "title": "Feature store read p95 (ms)",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "1000 * histogram_quantile(0.95, rate(fraud_feature_store_read_latency_seconds_bucket[5m]))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Validation failures / sec",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 24 },
+      "targets": [{ "expr": "rate(fraud_stream_validation_failures_total[5m])" }]
+    }
+  ]
+}

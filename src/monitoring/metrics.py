@@ -49,6 +49,14 @@ SCORE_REQUESTS = Counter(
     "Total /score requests",
     labelnames=("model_source", "decision"),
 )
+# Path + HTTP status class, incremented by src/api/middleware.py for every
+# request the ASGI app handles -- used for the HighAPIErrorRate alert,
+# independent of any single endpoint's own business-logic counters.
+API_REQUESTS = Counter(
+    "fraud_api_requests_total",
+    "Total HTTP requests handled by the FastAPI app, by path and status class",
+    labelnames=("path", "status_class"),
+)
 SCORE_LATENCY = Histogram(
     "fraud_score_latency_seconds",
     "End-to-end /score handler latency (feature lookup + model + audit write)",

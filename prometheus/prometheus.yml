@@ -2,6 +2,14 @@ global:
   scrape_interval: 5s
   evaluation_interval: 5s
 
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+
 scrape_configs:
   - job_name: "fraud-producer"
     static_configs:
@@ -15,6 +23,19 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ["api:8080"]
+
+  - job_name: "kafka-exporter"
+    static_configs:
+      - targets: ["kafka-exporter:9308"]
+
+  # Pushgateway carries batch-job metrics: drift reports
+  # (src/ml/drift.py::push_drift_metrics) and business metrics
+  # (src/monitoring/business_metrics.py), both pushed by Airflow DAGs on
+  # their own schedules rather than scraped from a long-running process.
+  - job_name: "pushgateway"
+    honor_labels: true
+    static_configs:
+      - targets: ["pushgateway:9091"]
 
   - job_name: "prometheus"
     static_configs:
