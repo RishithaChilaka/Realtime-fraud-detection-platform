@@ -177,3 +177,33 @@ class ModelApprovalRecord(Base):
     )
 
     __table_args__ = (Index("ix_model_approvals_name_version", "model_name", "model_version"),)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: drift detection audit trail.
+# ---------------------------------------------------------------------------
+
+
+class DriftReportRecord(Base):
+    """One row per `dags/drift_detection_dag.py` run: the full KS-test/PSI
+    report, queryable for the Grafana model-health dashboard and for
+    `automated_promotion_dag.py`'s "was drift the trigger?" decision, and
+    durable even though the same numbers are also pushed to Prometheus
+    (Pushgateway metrics don't retain history the way a table does)."""
+
+    __tablename__ = "drift_reports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    model_name: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    reference_window: Mapped[str] = mapped_column(String(64), nullable=False)
+    current_window: Mapped[str] = mapped_column(String(64), nullable=False)
+    any_drift_detected: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    drifted_features: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    max_psi: Mapped[float] = mapped_column(Float, nullable=False)
+    score_ks_p_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    score_psi: Mapped[float | None] = mapped_column(Float, nullable=True)
+    score_drifted: Mapped[bool] = mapped_column(Boolean, default=False)
+    full_report: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )

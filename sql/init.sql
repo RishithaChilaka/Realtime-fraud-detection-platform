@@ -109,3 +109,25 @@ CREATE TABLE IF NOT EXISTS model_approvals (
 );
 
 CREATE INDEX IF NOT EXISTS ix_model_approvals_name_version ON model_approvals (model_name, model_version);
+
+-- ---------------------------------------------------------------------------
+-- Phase 3: drift detection audit trail. Mirrors DriftReportRecord.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS drift_reports (
+    id                   UUID PRIMARY KEY,
+    model_name           VARCHAR(64) NOT NULL,
+    reference_window     VARCHAR(64) NOT NULL,
+    current_window       VARCHAR(64) NOT NULL,
+    any_drift_detected   BOOLEAN NOT NULL,
+    drifted_features     JSONB NOT NULL,
+    max_psi              DOUBLE PRECISION NOT NULL,
+    score_ks_p_value     DOUBLE PRECISION,
+    score_psi            DOUBLE PRECISION,
+    score_drifted        BOOLEAN NOT NULL DEFAULT FALSE,
+    full_report          JSONB NOT NULL,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_drift_reports_model_name ON drift_reports (model_name);
+CREATE INDEX IF NOT EXISTS ix_drift_reports_created_at ON drift_reports (created_at);

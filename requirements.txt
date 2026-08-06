@@ -29,3 +29,16 @@ streamlit==1.32.2
 plotly==5.20.0
 requests==2.31.0
 locust==2.25.0
+
+# --- Phase 3: MLOps, observability, cloud ---
+# NOTE: apache-airflow is deliberately NOT installed here. Airflow pins very
+# strict transitive dependency versions ("constraints files") that regularly
+# conflict with fastapi/mlflow/xgboost's own pins; bundling it into the same
+# environment as the API/training images is a common source of dependency
+# hell in real deployments. The Airflow webserver/scheduler run from the
+# official apache/airflow image instead, with only the extra packages the
+# DAGs need layered on top -- see docker/airflow/requirements.txt.
+scipy==1.12.0
+PyJWT==2.8.0
+boto3==1.34.69
+

@@ -23,6 +23,7 @@ from src.storage.postgres_models import (
     AnalystFeedbackRecord,
     AuditLogRecord,
     Base,
+    DriftReportRecord,
     ModelApprovalRecord,
     PredictionRecord,
     ReviewCaseRecord,
@@ -325,6 +326,148 @@ class PostgresClient:
             session.add(record)
             session.flush()
             return record.id
+
+    # -- Phase 3: drift detection + business/model metrics ------------------
+
+    def record_drift_report(self, model_name: str, report: dict) -> str:
+        """Persist a `drift.DriftReport.to_dict()` result. Called by
+        `dags/drift_detection_dag.py` after every run."""
+        record = DriftReportRecord(
+            model_name=model_name,
+            reference_window=report["reference_window"],
+            current_window=report["current_window"],
+            any_drift_detected=report["any_drift_detected"],
+            drifted_features=report["drifted_features"],
+            max_psi=report["max_psi"],
+            score_ks_p_value=report.get("score_ks_p_value"),
+            score_psi=report.get("score_psi"),
+            score_drifted=report.get("score_drifted", False),
+            full_report=report,
+        )
+        with self.session() as session:
+            session.add(record)
+            session.flush()
+            return record.id
+
+    def get_latest_drift_report(self, model_name: str) -> Optional[dict[str, Any]]:
+        with self.session() as session:
+            stmt = (
+                select(DriftReportRecord)
+                .where(DriftReportRecord.model_name == model_name)
+                .order_by(DriftReportRecord.created_at.desc())
+                .limit(1)
+            )
+            record = session.execute(stmt).scalars().first()
+            if record is None:
+                return None
+            return record.full_report
+
+    def fetch_predictions_since(
+        self, since: datetime, model_name: Optional[str] = None, limit: int = 50_000
+    ) -> list[dict[str, Any]]:
+        """Recent scored transactions -- the "current window" input for
+        drift detection, and the base population for business-metric
+        aggregation (fraud detection rate, review queue size trend)."""
+        with self.session() as session:
+            stmt = select(PredictionRecord).where(PredictionRecord.created_at >= since)
+            if model_name:
+                stmt = stmt.where(PredictionRecord.model_name == model_name)
+            stmt = stmt.order_by(PredictionRecord.created_at.desc()).limit(limit)
+            rows = session.execute(stmt).scalars().all()
+            return [
+                {
+                    "id": r.id,
+                    "transaction_id": r.transaction_id,
+                    "card_id": r.card_id,
+                    "model_name": r.model_name,
+                    "model_version": r.model_version,
+                    "model_source": r.model_source,
+                    "input_features": r.input_features,
+                    "fraud_score": r.fraud_score,
+                    "risk_level": r.risk_level,
+                    "decision": r.decision,
+                    "created_at": r.created_at,
+                }
+                for r in rows
+            ]
+
+    def fetch_feedback_with_predictions(self, since: datetime, limit: int = 50_000) -> list[dict[str, Any]]:
+        """Join `analyst_feedback` back to the `predictions` row it
+        resolves, for false-positive/false-negative rate computation:
+        a `false_positive` label means the model/decision flagged a
+        transaction the analyst confirmed was legitimate; `false_negative`
+        means a transaction that should have been flagged wasn't."""
+        with self.session() as session:
+            stmt = (
+                select(AnalystFeedbackRecord, PredictionRecord)
+                .join(
+                    ReviewCaseRecord,
+                    AnalystFeedbackRecord.case_id == ReviewCaseRecord.id,
+                )
+                .join(
+                    PredictionRecord,
+                    ReviewCaseRecord.prediction_id == PredictionRecord.id,
+                )
+                .where(AnalystFeedbackRecord.created_at >= since)
+                .limit(limit)
+            )
+            rows = session.execute(stmt).all()
+            return [
+                {
+                    "label": feedback.label,
+                    "decision": prediction.decision,
+                    "fraud_score": prediction.fraud_score,
+                    "transaction_id": feedback.transaction_id,
+                }
+                for feedback, prediction in rows
+            ]
+
+    def fetch_labeled_training_examples(
+        self, since: datetime, limit: int = 50_000
+    ) -> list[dict[str, Any]]:
+        """Analyst-confirmed ground truth, ready for retraining: joins
+        `analyst_feedback` back to the exact `input_features` row
+        `PredictionRecord` stored at scoring time (no need to recompute
+        features from raw history after the fact -- the feature vector
+        used to make the original decision is already durable), and maps
+        the analyst's QA label to a binary fraud label:
+          confirmed_fraud, false_negative  -> 1 (is fraud)
+          confirmed_legitimate, false_positive -> 0 (not fraud)
+        """
+        with self.session() as session:
+            stmt = (
+                select(AnalystFeedbackRecord, PredictionRecord)
+                .join(ReviewCaseRecord, AnalystFeedbackRecord.case_id == ReviewCaseRecord.id)
+                .join(PredictionRecord, ReviewCaseRecord.prediction_id == PredictionRecord.id)
+                .where(AnalystFeedbackRecord.created_at >= since)
+                .limit(limit)
+            )
+            rows = session.execute(stmt).all()
+
+        label_map = {
+            "confirmed_fraud": 1,
+            "false_negative": 1,
+            "confirmed_legitimate": 0,
+            "false_positive": 0,
+        }
+        examples = []
+        for feedback, prediction in rows:
+            if feedback.label not in label_map:
+                continue
+            examples.append(
+                {
+                    "transaction_id": feedback.transaction_id,
+                    "input_features": prediction.input_features,
+                    "label": label_map[feedback.label],
+                    "analyst_label": feedback.label,
+                }
+            )
+        return examples
+
+    def count_review_cases(self, status: str = "pending") -> int:
+        with self.session() as session:
+            stmt = select(ReviewCaseRecord).where(ReviewCaseRecord.status == status)
+            return len(session.execute(stmt).scalars().all())
 
     def has_approval(self, model_name: str, model_version: str, to_stage: str) -> bool:
         """Gate used by `src.ml.registry.promote_model`: a stage transition

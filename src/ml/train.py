@@ -37,9 +37,10 @@ from sklearn.metrics import (
 from src.common.config import Settings, get_settings
 from src.common.logging_config import configure_logging
 from src.ml import registry
-from src.ml.dataset import build_training_dataset
+from src.ml.dataset import build_feedback_dataset, build_training_dataset
 from src.ml.model_card import render_model_card
 from src.ml.model_features import FEATURE_COLUMNS, select_model_matrix
+from src.storage.postgres_client import PostgresClient
 
 logger = configure_logging("ml_train")
 
@@ -268,13 +269,46 @@ def run(settings: Settings | None = None) -> dict[str, Any]:
 
     logger.info("building_training_dataset")
     df = build_training_dataset()
+
+    feedback_rows = 0
+    description = (
+        "Synthetic transactions from `TransactionGenerator` (Phase 1), with "
+        "rolling-window features computed by `features.compute_features` in "
+        "true per-card chronological order, identical to the live pipeline."
+    )
+    try:
+        pg_client = PostgresClient(settings)
+        feedback_df = build_feedback_dataset(pg_client)
+    except Exception as exc:  # pragma: no cover - defensive; retraining must not
+        # hard-fail just because Postgres/feedback data isn't reachable in a
+        # given environment (e.g. a from-scratch dev setup with zero analyst
+        # activity yet).
+        logger.warning("feedback_dataset_unavailable", error=str(exc))
+        feedback_df = None
+
+    if feedback_df is not None:
+        feedback_rows = len(feedback_df)
+        # card_id/event_time aren't produced by the feedback path (analyst
+        # feedback rows don't carry them); fill with placeholders so the
+        # concatenated frame has a consistent schema for downstream
+        # `card_id`/date bookkeeping (not used as model features).
+        feedback_df = feedback_df.copy()
+        feedback_df["card_id"] = feedback_df.get("card_id", "feedback_unknown")
+        df = pd.concat([df, feedback_df], ignore_index=True, sort=False)
+        logger.info("merged_analyst_feedback_into_training_set", feedback_rows=feedback_rows)
+
     dataset_summary = {
-        "description": (
-            "Synthetic transactions from `TransactionGenerator` (Phase 1), with "
-            "rolling-window features computed by `features.compute_features` in "
-            "true per-card chronological order, identical to the live pipeline."
+        "description": description
+        + (
+            f" Additionally includes {feedback_rows} analyst-labeled examples from the "
+            "human-in-the-loop feedback loop (Phase 2 `analyst_feedback` table)."
+            if feedback_rows
+            else " No analyst feedback rows met the minimum-sample threshold for this run; "
+            "trained on synthetic data only."
         ),
         "total_rows": len(df),
+        "synthetic_rows": len(df) - feedback_rows,
+        "analyst_feedback_rows": feedback_rows,
         "positive_rate": round(float(df["label"].mean()), 4),
         "train_test_split": "75% train / 25% test, stratified on label",
         "num_cardholders": df["card_id"].nunique(),

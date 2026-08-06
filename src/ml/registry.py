@@ -48,6 +48,24 @@ def _client(settings: Settings) -> MlflowClient:
     return MlflowClient(tracking_uri=settings.mlflow_tracking_uri)
 
 
+def get_latest_staging_version(settings: Settings, model_name: str) -> Optional[ModelVersion]:
+    """Newest `Staging` version for `model_name`, or `None` if there isn't
+    one -- used by `dags/automated_promotion_dag.py` to find the retraining
+    DAG's freshly-registered candidate."""
+    client = _client(settings)
+    versions = client.get_latest_versions(model_name, stages=["Staging"])
+    return versions[0] if versions else None
+
+
+def get_run_metrics(settings: Settings, run_id: str) -> dict[str, float]:
+    """Pull back the metrics `train.py` logged for a run (precision,
+    recall, fairness_* breakdowns, etc.) -- used to evaluate the automated
+    promotion validation gate without re-running evaluation."""
+    client = _client(settings)
+    run = client.get_run(run_id)
+    return dict(run.data.metrics)
+
+
 def register_and_stage(
     settings: Settings,
     run_id: str,
