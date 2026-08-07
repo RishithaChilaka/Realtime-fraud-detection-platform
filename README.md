@@ -15,6 +15,10 @@ Production-grade platform for real-time credit-card fraud detection, built in ph
   rules across system/model/business metrics, JWT-based RBAC and PII-masked logging,
   and a full Terraform AWS deployment (ECS Fargate, RDS, ElastiCache, MSK) with a
   GitHub Actions CI/CD pipeline to ECR/ECS.
+- **FraudShield upload dashboard**: a browser dashboard at `/dashboard/` -- upload a
+  CSV of transactions, get back the same KPIs/charts/alerts table a live fraud team
+  would see, scored by the exact same model and rules `/score` uses. See
+  [Upload dashboard](#upload-dashboard-fraudshield) below.
 
 ## Architecture
 
@@ -130,6 +134,8 @@ src/
   monitoring/business_metrics.py    # (Phase 3) block/review/FP-FN rate exporter (Pushgateway)
   api/auth.py, api/middleware.py    # (Phase 3) JWT/RBAC, request metrics + access log
   common/pii.py, common/secrets.py  # (Phase 3) log PII masking, AWS Secrets Manager loader
+  api/batch.py, api/routes/batch.py # upload dashboard: CSV parsing + in-memory batch scoring
+frontend/                # upload-a-CSV FraudShield dashboard (served by the API at /dashboard/)
 streamlit_app/          # (Phase 2) analyst review UI, (Phase 3) login flow
 scripts/                # CLI entrypoints (producer, consumer, train_models, promote_model, ...)
 docker/                 # Dockerfiles: producer, consumer, api, training, streamlit, airflow
@@ -166,6 +172,7 @@ total (`docker compose config --services` to list them all).
   the compose network is unaffected)
 - Analyst review UI: http://localhost:8501 (login with one of the demo accounts in
   `src/api/auth.py`'s `_DEMO_USERS`, e.g. `analyst1` / `analyst-demo-pass`)
+- FraudShield upload dashboard: http://localhost:8090/dashboard/ -- see below
 - Prometheus: http://localhost:9090 &nbsp;·&nbsp; Grafana: http://localhost:3000 (admin/admin)
   &nbsp;·&nbsp; Alertmanager: http://localhost:9093 &nbsp;·&nbsp; Airflow: http://localhost:8793
   (default `admin`/`admin`, set by `docker/airflow`'s init step)
@@ -204,6 +211,50 @@ curl -X POST http://localhost:8080/admin/reload-model  # picks up the new Produc
 ```
 
 Tear down: `docker compose down -v`
+
+## Upload dashboard (FraudShield)
+
+A browser dashboard at `/dashboard/` (served by the same FastAPI process as
+`/score` -- no separate frontend container) for the "I have a file of
+transactions, show me what the fraud model thinks of it" workflow, styled
+after a real-time SOC-style dashboard mockup: sidebar nav, KPI cards, an
+alerts-over-time chart, a world map of flagged transactions, a fraud-reason
+breakdown, a flagged-transactions table, and a model performance panel.
+
+**How it works**: click "Download sample CSV" to get a realistic file
+(generated with the same `TransactionGenerator` the Kafka producer uses, via
+`GET /batch/template`), or upload your own with the columns listed on the
+page (`transaction_id, card_id, user_id, amount, merchant_id,
+merchant_category, transaction_type, channel, latitude, longitude, country,
+event_time`, plus optional `currency`, `device_id`, `ip_address`). The upload
+posts to `POST /batch/score`, which:
+
+1. Validates every row against the same `Transaction` schema the Kafka
+   producer/consumer use, skipping (and reporting) malformed rows rather
+   than failing the whole file.
+2. Sorts transactions by `event_time` and replays them through the *exact*
+   feature engineering (`compute_features`), model (or rule-based fallback),
+   and routing logic `/score` uses -- see `src/api/batch.py`. The one
+   difference from live scoring: rolling-window history (velocity, amount
+   z-score, impossible travel) is built **in memory from the uploaded file
+   itself**, not read from the live Redis feature store, and nothing is
+   written to Postgres or Redis. An upload is a one-off "what would the
+   platform have done with this data" analysis, not live traffic -- it won't
+   show up in the Streamlit review queue or the prediction audit trail.
+3. Returns the aggregated KPIs, a timeseries bucketed across the file's own
+   `event_time` range (there's no "now" for an uploaded file), a fraud-reason
+   breakdown built from the same rule primitives `RuleBasedFallback` uses
+   (velocity/amount-outlier/impossible-travel/new-device, plus "model signal"
+   for rows the ML model flagged that no simple rule would have caught), the
+   flagged transactions themselves, and the current model's **last validated
+   training-run metrics** (precision/recall/F1/AUC-ROC from MLflow) --
+   labeled as such, not computed from the upload, since an unlabeled file has
+   no ground truth to score against.
+
+This is deliberately additive, not a replacement for the Streamlit analyst
+review UI, which does a different job (individual case review + feedback
+submission that feeds retraining) -- see `src/api/batch.py`'s module
+docstring for the full reasoning.
 
 ## Cloud deployment (AWS)
 

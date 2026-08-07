@@ -54,6 +54,7 @@ class ModelState:
         self.explainer: Optional[ShapExplainer] = None
         self.model_name: Optional[str] = None
         self.model_version: Optional[str] = None
+        self.run_id: Optional[str] = None
         self.fallback = RuleBasedFallback(settings)
         self.feature_store = RedisFeatureStore(settings)
         self.reload()
@@ -66,11 +67,13 @@ class ModelState:
             self.explainer = None
             self.model_name = None
             self.model_version = None
+            self.run_id = None
             return False
 
         self.model = loaded.model
         self.model_name = loaded.model_name
         self.model_version = loaded.model_version
+        self.run_id = loaded.run_id
         try:
             self.explainer = ShapExplainer(loaded.model)
         except Exception as exc:  # pragma: no cover - defensive, SHAP is best-effort

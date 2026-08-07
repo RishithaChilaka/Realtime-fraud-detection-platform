@@ -41,6 +41,7 @@ class LoadedModel:
     model_version: str
     stage: str
     flavor: str  # "xgboost" | "lightgbm"
+    run_id: Optional[str] = None
 
 
 def _client(settings: Settings) -> MlflowClient:
@@ -184,6 +185,7 @@ def load_production_model(settings: Optional[Settings] = None) -> Optional[Loade
             model_version=version.version,
             stage="Production",
             flavor=flavor,
+            run_id=version.run_id,
         )
     except (MlflowException, OSError) as exc:
         logger.error("model_load_failed", error=str(exc))
