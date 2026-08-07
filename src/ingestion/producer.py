@@ -94,7 +94,9 @@ def run(tps: Optional[int] = None, edge_case_ratio: Optional[float] = None) -> N
     signal.signal(signal.SIGINT, _handle_sigterm)
     signal.signal(signal.SIGTERM, _handle_sigterm)
 
-    logger.info("producer_started", tps=tps, edge_case_ratio=ratio, topic=settings.kafka_topic_transactions)
+    logger.info(
+        "producer_started", tps=tps, edge_case_ratio=ratio, topic=settings.kafka_topic_transactions
+    )
 
     batch_interval = 1.0
     while not stop:

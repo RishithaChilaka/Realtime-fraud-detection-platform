@@ -53,7 +53,9 @@ def evaluate_validation_gate(settings: Settings, metrics: dict[str, float]) -> V
 
     precision = metrics.get("precision", 0.0)
     if precision < settings.auto_promotion_min_precision:
-        reasons.append(f"precision {precision:.3f} below floor {settings.auto_promotion_min_precision}")
+        reasons.append(
+            f"precision {precision:.3f} below floor {settings.auto_promotion_min_precision}"
+        )
 
     fairness_recalls = {
         key.removeprefix("fairness_").removesuffix("_recall"): value
@@ -68,7 +70,8 @@ def evaluate_validation_gate(settings: Settings, metrics: dict[str, float]) -> V
             reasons.append(
                 f"cross-country fairness recall gap {gap:.3f} exceeds "
                 f"{settings.auto_promotion_max_fairness_recall_gap} "
-                f"(best={best}:{fairness_recalls[best]:.3f}, worst={worst}:{fairness_recalls[worst]:.3f})"
+                f"(best={best}:{fairness_recalls[best]:.3f}, "
+                f"worst={worst}:{fairness_recalls[worst]:.3f})"
             )
 
     return ValidationResult(passed=not reasons, reasons=reasons)
@@ -84,10 +87,16 @@ def maybe_auto_promote(
     structured result dict describing what happened (or why nothing did) --
     the DAG logs this verbatim as its task result."""
     if not settings.enable_automated_promotion:
-        return {"promoted": False, "reason": "automated promotion disabled (enable_automated_promotion=False)"}
+        return {
+            "promoted": False,
+            "reason": "automated promotion disabled (enable_automated_promotion=False)",
+        }
 
     if drift_report is None or not drift_report.get("any_drift_detected"):
-        return {"promoted": False, "reason": "no drift detected -- automated promotion only triggers on drift"}
+        return {
+            "promoted": False,
+            "reason": "no drift detected -- automated promotion only triggers on drift",
+        }
 
     candidate = registry.get_latest_staging_version(settings, model_name)
     if candidate is None:

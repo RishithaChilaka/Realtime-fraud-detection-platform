@@ -77,7 +77,9 @@ def read_kafka_stream(spark: SparkSession, settings: Settings) -> DataFrame:
     return parsed.withWatermark("event_time", "10 minutes")
 
 
-def _process_partition_group(rows: list[dict], store: RedisFeatureStore) -> tuple[list[Transaction], int]:
+def _process_partition_group(
+    rows: list[dict], store: RedisFeatureStore
+) -> tuple[list[Transaction], int]:
     """Validate + compute features for one card_id's rows in a micro-batch,
     seeding history from the feature store so windows are correct across
     batch boundaries. Returns (valid transactions, invalid count)."""

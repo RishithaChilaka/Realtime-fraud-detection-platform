@@ -56,7 +56,9 @@ class FeatureVector:
         return d
 
 
-def _in_window(history: Sequence[Transaction], as_of: datetime, window: timedelta) -> list[Transaction]:
+def _in_window(
+    history: Sequence[Transaction], as_of: datetime, window: timedelta
+) -> list[Transaction]:
     lower = as_of - window
     return [t for t in history if lower <= t.event_time <= as_of]
 
@@ -75,7 +77,10 @@ def compute_features(history: Sequence[Transaction], current: Transaction) -> Fe
       signal.
     """
     as_of = current.event_time
-    past = sorted((t for t in history if t.transaction_id != current.transaction_id), key=lambda t: t.event_time)
+    past = sorted(
+        (t for t in history if t.transaction_id != current.transaction_id),
+        key=lambda t: t.event_time,
+    )
 
     window_1h = _in_window(past, as_of, timedelta(hours=1))
     window_24h = _in_window(past, as_of, timedelta(hours=24))
@@ -87,8 +92,12 @@ def compute_features(history: Sequence[Transaction], current: Transaction) -> Fe
     last_txn = past[-1] if past else None
     if last_txn is not None:
         seconds_since_last = (as_of - last_txn.event_time).total_seconds()
-        distance_km = haversine_km(last_txn.latitude, last_txn.longitude, current.latitude, current.longitude)
-        implied_speed = (distance_km / (seconds_since_last / 3600)) if seconds_since_last > 0 else None
+        distance_km = haversine_km(
+            last_txn.latitude, last_txn.longitude, current.latitude, current.longitude
+        )
+        implied_speed = (
+            (distance_km / (seconds_since_last / 3600)) if seconds_since_last > 0 else None
+        )
     else:
         seconds_since_last = None
         distance_km = None
@@ -103,7 +112,9 @@ def compute_features(history: Sequence[Transaction], current: Transaction) -> Fe
         zscore = 0.0
 
     known_devices = {t.device_id for t in past if t.device_id}
-    is_new_device = bool(current.device_id) and current.device_id not in known_devices and bool(known_devices)
+    is_new_device = (
+        bool(current.device_id) and current.device_id not in known_devices and bool(known_devices)
+    )
 
     return FeatureVector(
         card_id=current.card_id,
@@ -124,7 +135,9 @@ def compute_features(history: Sequence[Transaction], current: Transaction) -> Fe
     )
 
 
-def is_impossible_travel(feature_vector: FeatureVector, max_plausible_speed_kmh: float = 900.0) -> bool:
+def is_impossible_travel(
+    feature_vector: FeatureVector, max_plausible_speed_kmh: float = 900.0
+) -> bool:
     """A simple, explainable rule built on top of the feature vector:
     commercial flight speed is ~900 km/h, so an implied speed above that
     between two consecutive card-present-ish events is physically

@@ -157,7 +157,8 @@ class TransactionGenerator:
         burst_size = self._rng.randint(6, 15)
         txns = []
         for i in range(burst_size):
-            t = self._normal_transaction(profile, event_time + timedelta(seconds=i * self._rng.uniform(1, 8)))
+            offset = timedelta(seconds=i * self._rng.uniform(1, 8))
+            t = self._normal_transaction(profile, event_time + offset)
             t = t.model_copy(update={"is_simulated_fraud": True})
             txns.append(t)
         return txns

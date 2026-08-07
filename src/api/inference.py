@@ -87,7 +87,9 @@ class ModelState:
         return self.model is not None
 
 
-def build_feature_row_for(state: ModelState, txn: Transaction) -> tuple[FeatureVector, pd.DataFrame]:
+def build_feature_row_for(
+    state: ModelState, txn: Transaction
+) -> tuple[FeatureVector, pd.DataFrame]:
     history = state.feature_store.get_history(txn.card_id)
     feature_vector = compute_features(history, txn)
     row_dict = build_feature_row(feature_vector, txn)
@@ -145,7 +147,9 @@ def score_transaction(state: ModelState, txn: Transaction) -> ScoringResult:
     )
 
 
-def explain_transaction(state: ModelState, txn: Transaction) -> tuple[ScoringResult, Optional[ShapExplanation]]:
+def explain_transaction(
+    state: ModelState, txn: Transaction
+) -> tuple[ScoringResult, Optional[ShapExplanation]]:
     """Score + explain in one pass. Returns `(scoring_result, None)` when
     the transaction was scored by the rule-based fallback (SHAP only
     applies to the tree model); callers should fall back to

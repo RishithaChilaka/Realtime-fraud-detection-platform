@@ -104,7 +104,9 @@ class TestComputeFeaturesWithHistory:
         assert fv.velocity_5min == 6  # 5 history + current, all within 5 minutes
 
     def test_new_device_flagged_when_known_devices_exist(self, make_transaction):
-        history = [make_transaction(event_time=BASE_TIME - timedelta(minutes=5), device_id="device_known")]
+        history = [
+            make_transaction(event_time=BASE_TIME - timedelta(minutes=5), device_id="device_known")
+        ]
         current = make_transaction(event_time=BASE_TIME, device_id="device_never_seen")
 
         fv = compute_features(history, current)
@@ -131,7 +133,11 @@ class TestComputeFeaturesWithHistory:
 
 class TestFraudHeuristics:
     def test_impossible_travel_flagged_for_implausible_speed(self, make_transaction):
-        history = [make_transaction(event_time=BASE_TIME - timedelta(minutes=5), latitude=SF[0], longitude=SF[1])]
+        history = [
+            make_transaction(
+                event_time=BASE_TIME - timedelta(minutes=5), latitude=SF[0], longitude=SF[1]
+            )
+        ]
         # SF -> NYC in 5 minutes is impossible (~4130km in 5 min => way over 900km/h)
         current = make_transaction(event_time=BASE_TIME, latitude=NY[0], longitude=NY[1])
 
@@ -140,7 +146,11 @@ class TestFraudHeuristics:
         assert is_impossible_travel(fv) is True
 
     def test_plausible_travel_not_flagged(self, make_transaction):
-        history = [make_transaction(event_time=BASE_TIME - timedelta(hours=6), latitude=SF[0], longitude=SF[1])]
+        history = [
+            make_transaction(
+                event_time=BASE_TIME - timedelta(hours=6), latitude=SF[0], longitude=SF[1]
+            )
+        ]
         current = make_transaction(event_time=BASE_TIME, latitude=NY[0], longitude=NY[1])
 
         fv = compute_features(history, current)
@@ -149,7 +159,8 @@ class TestFraudHeuristics:
 
     def test_velocity_abuse_flagged_above_threshold(self, make_transaction):
         history = [
-            make_transaction(event_time=BASE_TIME - timedelta(seconds=s)) for s in (10, 20, 30, 40, 50, 60)
+            make_transaction(event_time=BASE_TIME - timedelta(seconds=s))
+            for s in (10, 20, 30, 40, 50, 60)
         ]
         current = make_transaction(event_time=BASE_TIME)
 

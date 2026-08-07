@@ -16,7 +16,6 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 from pyspark.sql.types import (
     DoubleType,
-    LongType,
     StringType,
     StructField,
     StructType,

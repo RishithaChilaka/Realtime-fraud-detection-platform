@@ -37,7 +37,8 @@ class TestRuleBasedFallback:
 
     def test_high_velocity_triggers_flag(self, fallback, make_transaction):
         history = [
-            make_transaction(event_time=BASE_TIME - timedelta(seconds=s)) for s in range(10, 130, 10)
+            make_transaction(event_time=BASE_TIME - timedelta(seconds=s))
+            for s in range(10, 130, 10)
         ]
         current = make_transaction(event_time=BASE_TIME)
         fv = compute_features(history, current)
@@ -62,7 +63,9 @@ class TestRuleBasedFallback:
 
     def test_impossible_travel_triggers_flag(self, fallback, make_transaction):
         history = [
-            make_transaction(event_time=BASE_TIME - timedelta(minutes=5), latitude=37.7749, longitude=-122.4194)
+            make_transaction(
+                event_time=BASE_TIME - timedelta(minutes=5), latitude=37.7749, longitude=-122.4194
+            )
         ]
         current = make_transaction(event_time=BASE_TIME, latitude=40.7128, longitude=-74.0060)
         fv = compute_features(history, current)
@@ -74,7 +77,8 @@ class TestRuleBasedFallback:
 
     def test_reason_property_joins_triggered_rules(self, fallback, make_transaction):
         history = [
-            make_transaction(event_time=BASE_TIME - timedelta(seconds=s)) for s in range(10, 130, 10)
+            make_transaction(event_time=BASE_TIME - timedelta(seconds=s))
+            for s in range(10, 130, 10)
         ]
         current = make_transaction(event_time=BASE_TIME)
         fv = compute_features(history, current)

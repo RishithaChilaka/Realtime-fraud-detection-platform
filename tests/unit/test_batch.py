@@ -100,7 +100,8 @@ def ml_state(settings):
 
 class TestParseTransactionsCsv:
     def test_parses_valid_rows(self):
-        content = (CSV_HEADER + _csv_row() + "\n" + _csv_row(transaction_id="txn_2") + "\n").encode()
+        rows = _csv_row() + "\n" + _csv_row(transaction_id="txn_2") + "\n"
+        content = (CSV_HEADER + rows).encode()
 
         transactions, row_errors, rows_in_file = parse_transactions_csv(content)
 
@@ -134,7 +135,9 @@ class TestParseTransactionsCsv:
 
 
 class TestScoreBatch:
-    def test_velocity_abuse_within_uploaded_file_is_detected(self, fallback_state, settings, make_transaction):
+    def test_velocity_abuse_within_uploaded_file_is_detected(
+        self, fallback_state, settings, make_transaction
+    ):
         # 12 transactions for the same card within a 2-minute window, entirely
         # from the uploaded file itself -- score_batch must build this
         # history in memory (there is no Redis in this test) for the rule to
@@ -194,10 +197,13 @@ class TestBucketTimeseries:
             reason_tag="none", reason_label="No signal",
         )
 
-    def test_buckets_span_the_files_own_time_range(self, make_transaction, fallback_state, settings):
+    def test_buckets_span_the_files_own_time_range(
+        self, make_transaction, fallback_state, settings
+    ):
+        later = BASE_TIME + timedelta(hours=1)
         scored = [
             self._scored(BASE_TIME, True, make_transaction, fallback_state, settings),
-            self._scored(BASE_TIME + timedelta(hours=1), True, make_transaction, fallback_state, settings),
+            self._scored(later, True, make_transaction, fallback_state, settings),
         ]
 
         buckets = bucket_timeseries(scored, num_buckets=4)
@@ -253,7 +259,9 @@ class TestBuildDashboardPayload:
         assert scores == sorted(scores, reverse=True)
         assert len(payload["top_alerts"]) == 3
 
-    def test_model_performance_reflects_fallback_when_no_model(self, fallback_state, settings, make_transaction):
+    def test_model_performance_reflects_fallback_when_no_model(
+        self, fallback_state, settings, make_transaction
+    ):
         payload = build_dashboard_payload(
             state=fallback_state, settings=settings, scored=[], row_errors=[],
             rows_in_file=0, truncated=False, model_metrics=None,
@@ -261,7 +269,9 @@ class TestBuildDashboardPayload:
 
         assert payload["model_performance"]["source"] == "fallback_active"
 
-    def test_model_performance_uses_run_metrics_when_available(self, ml_state, settings, make_transaction):
+    def test_model_performance_uses_run_metrics_when_available(
+        self, ml_state, settings, make_transaction
+    ):
         payload = build_dashboard_payload(
             state=ml_state, settings=settings, scored=[], row_errors=[],
             rows_in_file=0, truncated=False,

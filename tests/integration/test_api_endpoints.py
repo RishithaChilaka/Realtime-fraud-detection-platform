@@ -228,7 +228,8 @@ class TestFallbackMode:
         assert body["model_source"] == "fallback_rules"
 
     def test_explain_returns_rule_based_reason(self, client_no_model):
-        resp = client_no_model.post("/explain", json=_sample_transaction_payload("txn_it_fallback_explain"))
+        payload = _sample_transaction_payload("txn_it_fallback_explain")
+        resp = client_no_model.post("/explain", json=payload)
         assert resp.status_code == 200
         body = resp.json()
         assert body["explanation_type"] == "rule_based"

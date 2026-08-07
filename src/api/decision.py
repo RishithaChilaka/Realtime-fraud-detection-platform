@@ -33,7 +33,9 @@ class RoutingResult:
 
 
 def decide(score: float, settings: Settings) -> RoutingResult:
-    in_uncertain_band = settings.review_confidence_band_low <= score <= settings.review_confidence_band_high
+    in_uncertain_band = (
+        settings.review_confidence_band_low <= score <= settings.review_confidence_band_high
+    )
 
     if score >= settings.risk_high_threshold:
         risk_level: RiskLevel = "high"
@@ -54,7 +56,10 @@ def decide(score: float, settings: Settings) -> RoutingResult:
     elif risk_level == "high":
         reason = f"score {score:.3f} at/above high-risk threshold ({settings.risk_high_threshold})"
     elif risk_level == "medium":
-        reason = f"score {score:.3f} between low ({settings.risk_low_threshold}) and high risk thresholds"
+        reason = (
+            f"score {score:.3f} between low ({settings.risk_low_threshold}) "
+            "and high risk thresholds"
+        )
     else:
         reason = f"score {score:.3f} at/below low-risk threshold ({settings.risk_low_threshold})"
 

@@ -26,7 +26,6 @@ from __future__ import annotations
 import io
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Optional
 
 import pandas as pd
@@ -136,7 +135,9 @@ def _derive_reason(fv: FeatureVector, decision: str, settings: Settings) -> tupl
         return "high_velocity", "High velocity"
     if fv.amount_zscore_24h >= settings.fallback_amount_zscore_threshold:
         return "amount_outlier", "Amount outlier"
-    if is_impossible_travel(fv, max_plausible_speed_kmh=settings.fallback_impossible_travel_speed_kmh):
+    if is_impossible_travel(
+        fv, max_plausible_speed_kmh=settings.fallback_impossible_travel_speed_kmh
+    ):
         return "impossible_travel", "Impossible travel"
     if fv.is_new_device and fv.avg_amount_1h > 0 and decision != "approve":
         return "new_device_high_spend", "New device + high spend"
@@ -145,7 +146,9 @@ def _derive_reason(fv: FeatureVector, decision: str, settings: Settings) -> tupl
     return "none", "No signal"
 
 
-def score_batch(state: ModelState, settings: Settings, transactions: list[Transaction]) -> list[ScoredTransaction]:
+def score_batch(
+    state: ModelState, settings: Settings, transactions: list[Transaction]
+) -> list[ScoredTransaction]:
     """Score every transaction using an in-memory, per-card history built
     from the file itself (see module docstring) -- never Redis."""
     ordered = sorted(transactions, key=lambda t: t.event_time)

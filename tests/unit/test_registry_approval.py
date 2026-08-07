@@ -52,7 +52,9 @@ class TestPromoteModel:
             name="fraud_xgboost", version="3", stage="Production", archive_existing_versions=True
         )
 
-    def test_promotion_without_recorded_approval_raises(self, mock_mlflow_client, mock_pg_client, settings):
+    def test_promotion_without_recorded_approval_raises(
+        self, mock_mlflow_client, mock_pg_client, settings
+    ):
         mock_pg_client.has_approval.return_value = False
 
         with pytest.raises(ApprovalRequiredError):

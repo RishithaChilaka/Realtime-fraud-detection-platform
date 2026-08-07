@@ -34,7 +34,9 @@ _MAX_HISTORY_LEN = 500  # bounded so a single hot card can't grow memory unbound
 
 
 class RedisFeatureStore:
-    def __init__(self, settings: Optional[Settings] = None, client: Optional[RedisClient] = None) -> None:
+    def __init__(
+        self, settings: Optional[Settings] = None, client: Optional[RedisClient] = None
+    ) -> None:
         self.settings = settings or get_settings()
         self._redis = (client or RedisClient(self.settings)).conn
 

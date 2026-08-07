@@ -68,7 +68,8 @@ class TestRedisFeatureStore:
 
     def test_history_is_trimmed_to_max_length(self, feature_store, make_transaction):
         for i in range(600):
-            feature_store.append_history(make_transaction(card_id="card_1", transaction_id=f"txn_{i}"))
+            txn = make_transaction(card_id="card_1", transaction_id=f"txn_{i}")
+            feature_store.append_history(txn)
 
         history = feature_store.get_history("card_1", limit=1000)
 

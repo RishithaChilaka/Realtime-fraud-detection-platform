@@ -86,5 +86,10 @@ app.mount("/metrics", make_asgi_app())
 # (no CORS needed) -- its JS calls `/batch/score` as a relative path.
 # `check_dir=False` lets the app boot even before the frontend/ directory
 # exists (e.g. a minimal image build), rather than crashing at import time.
-_FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend")
-app.mount("/dashboard", StaticFiles(directory=_FRONTEND_DIR, html=True, check_dir=False), name="dashboard")
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+_FRONTEND_DIR = os.path.join(_REPO_ROOT, "frontend")
+app.mount(
+    "/dashboard",
+    StaticFiles(directory=_FRONTEND_DIR, html=True, check_dir=False),
+    name="dashboard",
+)

@@ -109,16 +109,26 @@ def push_snapshot(settings: Settings, snapshot: BusinessMetricsSnapshot) -> None
     g("fraud_business_total_predictions", "Predictions in the metrics window").set(
         snapshot.total_predictions
     )
-    g("fraud_business_block_rate", "Fraction of predictions decided 'block'").set(snapshot.block_rate)
-    g("fraud_business_review_rate", "Fraction of predictions decided 'review'").set(snapshot.review_rate)
-    g("fraud_business_approve_rate", "Fraction of predictions decided 'approve'").set(snapshot.approve_rate)
-    g("fraud_business_fallback_rate", "Fraction of predictions scored by the rule-based fallback").set(
-        snapshot.fallback_rate
+    g("fraud_business_block_rate", "Fraction of predictions decided 'block'").set(
+        snapshot.block_rate
     )
+    g("fraud_business_review_rate", "Fraction of predictions decided 'review'").set(
+        snapshot.review_rate
+    )
+    g("fraud_business_approve_rate", "Fraction of predictions decided 'approve'").set(
+        snapshot.approve_rate
+    )
+    g(
+        "fraud_business_fallback_rate", "Fraction of predictions scored by the rule-based fallback"
+    ).set(snapshot.fallback_rate)
     g("fraud_business_score_p50", "Median fraud score in the window").set(snapshot.score_p50)
     g("fraud_business_score_p95", "p95 fraud score in the window").set(snapshot.score_p95)
-    g("fraud_review_queue_pending", "Cases awaiting analyst review").set(snapshot.review_queue_pending)
-    g("fraud_review_queue_in_review", "Cases currently being reviewed").set(snapshot.review_queue_in_review)
+    g("fraud_review_queue_pending", "Cases awaiting analyst review").set(
+        snapshot.review_queue_pending
+    )
+    g("fraud_review_queue_in_review", "Cases currently being reviewed").set(
+        snapshot.review_queue_in_review
+    )
     g("fraud_business_false_positive_rate", "Analyst-confirmed false positive rate").set(
         snapshot.false_positive_rate
     )

@@ -81,7 +81,9 @@ def _fairness_report(
     return report
 
 
-def _log_confusion_matrix(y_true: np.ndarray, y_prob: np.ndarray, threshold: float, artifact_name: str) -> None:
+def _log_confusion_matrix(
+    y_true: np.ndarray, y_prob: np.ndarray, threshold: float, artifact_name: str
+) -> None:
     y_pred = (y_prob >= threshold).astype(int)
     cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
     text = (
@@ -158,7 +160,11 @@ def train_xgboost(
         logger.info("xgboost_trained", run_id=run.info.run_id, **metrics)
 
     version = registry.register_and_stage(
-        settings, run.info.run_id, settings.mlflow_xgboost_model_name, "model", target_stage="Staging"
+        settings,
+        run.info.run_id,
+        settings.mlflow_xgboost_model_name,
+        "model",
+        target_stage="Staging",
     )
     _write_model_card_file(settings.mlflow_xgboost_model_name, version.version, card)
     return run.info.run_id, version.version
@@ -229,7 +235,11 @@ def train_lightgbm(
         logger.info("lightgbm_trained", run_id=run.info.run_id, **metrics)
 
     version = registry.register_and_stage(
-        settings, run.info.run_id, settings.mlflow_lightgbm_model_name, "model", target_stage="Staging"
+        settings,
+        run.info.run_id,
+        settings.mlflow_lightgbm_model_name,
+        "model",
+        target_stage="Staging",
     )
     _write_model_card_file(settings.mlflow_lightgbm_model_name, version.version, card)
     return run.info.run_id, version.version

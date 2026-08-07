@@ -95,7 +95,9 @@ def build_feature_row(feature_vector: FeatureVector, txn: Transaction) -> dict[s
     }
     txn_channel = txn.channel.value if hasattr(txn.channel, "value") else str(txn.channel)
     txn_type = (
-        txn.transaction_type.value if hasattr(txn.transaction_type, "value") else str(txn.transaction_type)
+        txn.transaction_type.value
+        if hasattr(txn.transaction_type, "value")
+        else str(txn.transaction_type)
     )
     for c in _CHANNEL_VALUES:
         row[f"channel_{c}"] = int(txn_channel == c)

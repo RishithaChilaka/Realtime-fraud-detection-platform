@@ -52,7 +52,9 @@ class RuleBasedFallback:
         triggered: list[str] = []
         score = 0.05  # baseline "nothing looks wrong" score
 
-        if is_velocity_abuse(feature_vector, max_txns_per_5min=self.settings.fallback_velocity_5min_threshold):
+        if is_velocity_abuse(
+            feature_vector, max_txns_per_5min=self.settings.fallback_velocity_5min_threshold
+        ):
             triggered.append(
                 f"velocity_5min ({feature_vector.velocity_5min}) exceeded threshold "
                 f"({self.settings.fallback_velocity_5min_threshold})"
@@ -67,11 +69,13 @@ class RuleBasedFallback:
             score = max(score, 0.85)
 
         if is_impossible_travel(
-            feature_vector, max_plausible_speed_kmh=self.settings.fallback_impossible_travel_speed_kmh
+            feature_vector,
+            max_plausible_speed_kmh=self.settings.fallback_impossible_travel_speed_kmh,
         ):
             triggered.append(
-                f"implied_speed_kmh ({feature_vector.implied_speed_kmh:.0f}) exceeds plausible travel "
-                f"speed ({self.settings.fallback_impossible_travel_speed_kmh:.0f} km/h)"
+                f"implied_speed_kmh ({feature_vector.implied_speed_kmh:.0f}) exceeds "
+                f"plausible travel speed "
+                f"({self.settings.fallback_impossible_travel_speed_kmh:.0f} km/h)"
             )
             score = max(score, 0.95)
 

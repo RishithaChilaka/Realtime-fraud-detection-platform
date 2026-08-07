@@ -286,7 +286,11 @@ class PostgresClient:
         """All analyst-labeled cases, newest first -- this is the export
         surface a retraining job would pull from."""
         with self.session() as session:
-            stmt = select(AnalystFeedbackRecord).order_by(AnalystFeedbackRecord.created_at.desc()).limit(limit)
+            stmt = (
+                select(AnalystFeedbackRecord)
+                .order_by(AnalystFeedbackRecord.created_at.desc())
+                .limit(limit)
+            )
             rows = session.execute(stmt).scalars().all()
             return [
                 {
@@ -391,7 +395,9 @@ class PostgresClient:
                 for r in rows
             ]
 
-    def fetch_feedback_with_predictions(self, since: datetime, limit: int = 50_000) -> list[dict[str, Any]]:
+    def fetch_feedback_with_predictions(
+        self, since: datetime, limit: int = 50_000
+    ) -> list[dict[str, Any]]:
         """Join `analyst_feedback` back to the `predictions` row it
         resolves, for false-positive/false-negative rate computation:
         a `false_positive` label means the model/decision flagged a

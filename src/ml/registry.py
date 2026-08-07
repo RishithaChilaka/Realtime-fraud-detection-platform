@@ -87,7 +87,9 @@ def register_and_stage(
         stage=target_stage,
         archive_existing_versions=False,
     )
-    logger.info("model_registered", model_name=model_name, version=result.version, stage=target_stage)
+    logger.info(
+        "model_registered", model_name=model_name, version=result.version, stage=target_stage
+    )
     return client.get_model_version(model_name, result.version)
 
 
@@ -163,7 +165,9 @@ def load_production_model(settings: Optional[Settings] = None) -> Optional[Loade
     settings = settings or get_settings()
     try:
         client = _client(settings)
-        versions = client.get_latest_versions(settings.mlflow_active_model_name, stages=["Production"])
+        versions = client.get_latest_versions(
+            settings.mlflow_active_model_name, stages=["Production"]
+        )
         if not versions:
             logger.warning("no_production_model", model_name=settings.mlflow_active_model_name)
             return None

@@ -21,7 +21,12 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 
-from src.api.batch import MAX_BATCH_ROWS, build_dashboard_payload, parse_transactions_csv, score_batch
+from src.api.batch import (
+    MAX_BATCH_ROWS,
+    build_dashboard_payload,
+    parse_transactions_csv,
+    score_batch,
+)
 from src.api.dependencies import get_model_state
 from src.api.inference import ModelState
 from src.common.config import Settings, get_settings
@@ -51,7 +56,9 @@ async def batch_score(
 
     content = await file.read()
     if not content:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty"
+        )
 
     try:
         transactions, row_errors, rows_in_file = parse_transactions_csv(content)
@@ -75,7 +82,8 @@ async def batch_score(
     if model_state.is_model_available and model_state.run_id:
         try:
             model_metrics = registry.get_run_metrics(settings, model_state.run_id)
-        except Exception as exc:  # MLflow unreachable -- degrade to "unavailable", don't fail the upload
+        except Exception as exc:
+            # MLflow unreachable -- degrade to "unavailable", don't fail the upload
             logger.warning("model_metrics_fetch_failed", error=str(exc))
 
     payload = build_dashboard_payload(
@@ -105,7 +113,9 @@ def batch_template(rows: int = 200) -> StreamingResponse:
     high-value, new-device) the Kafka producer injects, so an upload
     against it actually exercises every row of the dashboard."""
     rows = max(10, min(rows, 5000))
-    generator = TransactionGenerator(num_cardholders=max(20, rows // 10), edge_case_ratio=0.12, seed=42)
+    generator = TransactionGenerator(
+        num_cardholders=max(20, rows // 10), edge_case_ratio=0.12, seed=42
+    )
     start = datetime.now(timezone.utc) - timedelta(hours=6)
 
     records = [t.model_dump(mode="json") for t in generator.stream(rows, start_time=start)]

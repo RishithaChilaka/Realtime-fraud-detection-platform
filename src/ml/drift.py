@@ -231,20 +231,28 @@ def push_drift_metrics(settings: "Settings", report: DriftReport) -> None:
         "1 if any feature or the score distribution drifted, else 0",
         registry=registry,
     ).set(1 if report.any_drift_detected else 0)
-    Gauge("fraud_drift_max_psi", "Highest PSI across all monitored features + score", registry=registry).set(
-        report.max_psi
-    )
-    Gauge("fraud_drift_drifted_feature_count", "Number of features flagged as drifted", registry=registry).set(
-        len(report.drifted_features)
-    )
+    Gauge(
+        "fraud_drift_max_psi",
+        "Highest PSI across all monitored features + score",
+        registry=registry,
+    ).set(report.max_psi)
+    Gauge(
+        "fraud_drift_drifted_feature_count",
+        "Number of features flagged as drifted",
+        registry=registry,
+    ).set(len(report.drifted_features))
     if report.score_psi is not None:
-        Gauge("fraud_drift_score_psi", "PSI of the prediction score distribution", registry=registry).set(
-            report.score_psi
-        )
+        Gauge(
+            "fraud_drift_score_psi",
+            "PSI of the prediction score distribution",
+            registry=registry,
+        ).set(report.score_psi)
     if report.score_ks_p_value is not None:
         Gauge(
             "fraud_drift_score_ks_p_value", "KS test p-value for the prediction score distribution",
             registry=registry,
         ).set(report.score_ks_p_value)
 
-    push_to_gateway(settings.pushgateway_url, job=f"fraud_drift_{report.model_name}", registry=registry)
+    push_to_gateway(
+        settings.pushgateway_url, job=f"fraud_drift_{report.model_name}", registry=registry
+    )
