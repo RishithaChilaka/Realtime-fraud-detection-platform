@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 USER airflow
-COPY docker/airflow/requirements.txt /tmp/requirements.txt
+COPY --chown=airflow:airflow docker/airflow/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 # The DAGs import `src.*` (feature engineering, ML training, drift
