@@ -89,7 +89,13 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # Long-form (not host:container:ro) because the host path may contain
+      # a colon (e.g. a folder named "ai:ml project"), which the short-form
+      # string syntax misparses as extra host:container:mode fields.
+      - type: bind
+        source: ./sql/init.sql
+        target: /docker-entrypoint-initdb.d/init.sql
+        read_only: true
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fraud_admin -d fraud_detection"]
       interval: 5s
@@ -240,8 +246,14 @@ services:
     image: prom/prometheus:v2.51.2
     container_name: fraud-prometheus
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - type: bind
+        source: ./prometheus/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+      - type: bind
+        source: ./prometheus/alert_rules.yml
+        target: /etc/prometheus/alert_rules.yml
+        read_only: true
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
@@ -252,7 +264,10 @@ services:
     image: prom/alertmanager:v0.27.0
     container_name: fraud-alertmanager
     volumes:
-      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - type: bind
+        source: ./alertmanager/alertmanager.yml
+        target: /etc/alertmanager/alertmanager.yml
+        read_only: true
     ports:
       - "9093:9093"
 
@@ -264,8 +279,14 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_AUTH_ANONYMOUS_ENABLED: "true"
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - type: bind
+        source: ./grafana/provisioning
+        target: /etc/grafana/provisioning
+        read_only: true
+      - type: bind
+        source: ./grafana/dashboards
+        target: /var/lib/grafana/dashboards
+        read_only: true
       - grafana-data:/var/lib/grafana
     ports:
       - "3000:3000"
@@ -308,7 +329,10 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__WEBSERVER__SECRET_KEY: change_me_in_prod
     volumes:
-      - ./dags:/opt/airflow/dags:ro
+      - type: bind
+        source: ./dags
+        target: /opt/airflow/dags
+        read_only: true
       - airflow-logs:/opt/airflow/logs
     depends_on:
       airflow-postgres:
@@ -323,7 +347,10 @@ services:
     environment:
       <<: *airflow-env
     volumes:
-      - ./dags:/opt/airflow/dags:ro
+      - type: bind
+        source: ./dags
+        target: /opt/airflow/dags
+        read_only: true
       - airflow-logs:/opt/airflow/logs
     ports:
       - "8793:8080"
@@ -344,7 +371,10 @@ services:
     environment:
       <<: *airflow-env
     volumes:
-      - ./dags:/opt/airflow/dags:ro
+      - type: bind
+        source: ./dags
+        target: /opt/airflow/dags
+        read_only: true
       - airflow-logs:/opt/airflow/logs
     depends_on:
       airflow-init:
