@@ -1,4 +1,6 @@
-FROM bitnami/spark:3.5.1
+# bitnami/spark was pulled from Docker Hub's free tier in Aug 2025; pinned
+# tags moved to the frozen bitnamilegacy/* namespace (see docker-compose.yml).
+FROM bitnamilegacy/spark:3.5.1
 
 USER root
 WORKDIR /app
