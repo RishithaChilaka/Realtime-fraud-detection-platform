@@ -29,7 +29,12 @@ httpx==0.27.0
 streamlit==1.32.2
 plotly==5.20.0
 requests==2.31.0
-locust==2.25.0
+# NOTE: locust is deliberately NOT installed here. It's a dev-only load
+# testing tool (see loadtest/), not a runtime dependency of any service --
+# every Docker image in this repo installs this file, and locust pulls in
+# gevent, which needs to compile a C extension from source and fails on
+# images that don't carry a full build toolchain (python3-dev, etc.).
+# It lives in requirements-dev.txt instead; see loadtest/load_test_report.md.
 
 # --- Phase 3: MLOps, observability, cloud ---
 # NOTE: apache-airflow is deliberately NOT installed here. Airflow pins very
