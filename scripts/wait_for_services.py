@@ -1,7 +1,20 @@
 #!/usr/bin/env python3
-"""Blocks until Kafka, PostgreSQL, and Redis are reachable. Used by the
-consumer/producer containers' entrypoint so they don't crash-loop while
-`docker-compose` is still starting dependent services."""
+"""Blocks until Kafka, PostgreSQL, and Redis are reachable, then execs into
+the real command. Used as the ENTRYPOINT for the api/producer/consumer/
+training containers (each Dockerfile's CMD -- e.g. `uvicorn ...` or
+`python scripts/run_producer.py`) so they don't crash-loop while
+`docker compose` is still starting dependent services.
+
+Docker only appends a Dockerfile's CMD as extra argv to the ENTRYPOINT
+process (sys.argv[1:] here) -- it does NOT run CMD as a separate step.
+This script is responsible for actually launching those argv itself once
+it's safe to do so; os.execvp replaces this process with that command
+(instead of spawning a child), so it keeps PID 1 and correctly receives
+signals like SIGTERM from `docker compose down`/`stop`. Without the
+os.execvp call at the end, this script would just print its readiness
+checks and exit 0 -- and the container would exit right along with it,
+having never started the actual service."""
+import os
 import socket
 import sys
 import time
@@ -33,6 +46,15 @@ def main() -> None:
     ]
     for host, port in targets:
         _wait_for_tcp(host, port)
+
+    command = sys.argv[1:]
+    if not command:
+        raise RuntimeError(
+            "wait_for_services.py was run with no command to exec -- it's meant to be "
+            "the ENTRYPOINT with the real command as CMD (e.g. ['uvicorn', ...]), not "
+            "run standalone."
+        )
+    os.execvp(command[0], command)
 
 
 if __name__ == "__main__":
