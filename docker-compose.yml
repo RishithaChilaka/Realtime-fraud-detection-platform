@@ -52,7 +52,10 @@ services:
 
   # --- Spark ---
   spark-master:
-    image: bitnami/spark:3.5.1
+    # Bitnami pulled all free `bitnami/*` images off Docker Hub in Aug 2025 and
+    # moved existing pinned tags to `bitnamilegacy/*` (frozen, no further
+    # updates). Same image content, just a renamed namespace.
+    image: bitnamilegacy/spark:3.5.1
     container_name: fraud-spark-master
     environment:
       SPARK_MODE: master
@@ -63,7 +66,8 @@ services:
       - "8080:8080"
 
   spark-worker:
-    image: bitnami/spark:3.5.1
+    # See spark-master's image comment above -- same Bitnami namespace migration.
+    image: bitnamilegacy/spark:3.5.1
     container_name: fraud-spark-worker
     environment:
       SPARK_MODE: worker
