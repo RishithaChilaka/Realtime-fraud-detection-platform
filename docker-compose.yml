@@ -54,7 +54,14 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      CLUSTER_ID: "fraud-detection-kraft-cluster-1"
+      # KRaft's CLUSTER_ID must be a base64-encoded 16-byte UUID (exactly 22
+      # chars), not an arbitrary label -- cp-kafka's entrypoint rejects
+      # anything else with "does not appear to be a valid UUID". Generated
+      # once with:
+      #   python3 -c "import uuid, base64; print(base64.urlsafe_b64encode(uuid.uuid4().bytes).decode().rstrip('='))"
+      # This value is arbitrary and fixed -- it just needs to stay the same
+      # across restarts of the same kafka-data volume; it isn't a secret.
+      CLUSTER_ID: "xrIzKe77QaKoFKFxARW2Lw"
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 10s
