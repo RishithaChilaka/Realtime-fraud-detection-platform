@@ -14,6 +14,7 @@ from typing import Any, Iterable, Iterator, Optional
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.common.config import Settings, get_settings
@@ -42,8 +43,26 @@ class PostgresClient:
     def create_all(self) -> None:
         """Create tables if they don't exist. Production deployments should
         prefer Alembic migrations (see `alembic/`); this is a convenience
-        for local dev and tests."""
-        Base.metadata.create_all(self.engine)
+        for local dev and tests.
+
+        Both the api and consumer services call this independently at
+        startup, and in Docker Compose the schema is *also* created by
+        sql/init.sql (baked into the postgres image, run automatically by
+        Postgres on first container init -- see docker/postgres/Dockerfile).
+        `create_all`'s checkfirst logic reliably skips tables that already
+        exist, but has been observed to still attempt to (re)create an
+        index that init.sql already created, which Postgres correctly
+        rejects as a duplicate object. That's not a real problem -- the
+        schema exists either way, which is the actual goal here -- so we
+        log it and move on instead of crashing service startup over it.
+        Any other database error still propagates normally."""
+        try:
+            Base.metadata.create_all(self.engine)
+        except ProgrammingError as exc:
+            if "already exists" in str(exc.orig):
+                logger.debug("schema_object_already_exists", detail=str(exc.orig))
+            else:
+                raise
 
     @contextmanager
     def session(self) -> Iterator[Session]:
