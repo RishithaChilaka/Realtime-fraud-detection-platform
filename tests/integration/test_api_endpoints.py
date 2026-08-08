@@ -28,8 +28,9 @@ xgboost = pytest.importorskip("xgboost")
 
 
 def _docker_available() -> bool:
-    import docker
     from docker.errors import DockerException
+
+    import docker
 
     try:
         docker.from_env().ping()

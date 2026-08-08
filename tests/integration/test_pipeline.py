@@ -28,8 +28,9 @@ testcontainers = pytest.importorskip("testcontainers")
 
 
 def _docker_available() -> bool:
-    import docker
     from docker.errors import DockerException
+
+    import docker
 
     try:
         docker.from_env().ping()
