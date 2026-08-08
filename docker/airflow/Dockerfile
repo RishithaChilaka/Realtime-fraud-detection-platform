@@ -19,3 +19,11 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 # detection, storage) directly -- mount/copy the app package so
 # `sys.path.insert(0, "/opt/airflow/app")` in each DAG resolves it.
 COPY --chown=airflow:airflow src /opt/airflow/app/src
+
+# Baked in at build time rather than bind-mounted at runtime -- a runtime
+# bind mount's host path gets translated through Docker Desktop's
+# /host_mnt/... layer, which breaks if that path contains a colon (e.g. a
+# project folder named "ai:ml project"). Build-time COPY isn't affected.
+# Trade-off: editing a DAG now requires `docker compose up -d --build`
+# instead of just being picked up live.
+COPY --chown=airflow:airflow dags /opt/airflow/dags

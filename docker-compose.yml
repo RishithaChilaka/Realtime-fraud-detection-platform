@@ -1,5 +1,18 @@
 name: fraud-detection-platform
 
+# No host-path bind mounts anywhere in this file, on purpose: if this repo
+# lives under a path containing a colon (e.g. a folder named "ai:ml
+# project"), Docker Desktop's host-path-to-container translation breaks on
+# the colon regardless of whether the volume is written in short form
+# ("./host:./container:ro") or long form ("type: bind / source: / target:").
+# Every service that needs a local config file or directory (postgres init
+# script, prometheus/alertmanager config, grafana provisioning/dashboards,
+# airflow dags) bakes it into a custom image at build time instead -- see
+# docker/postgres/Dockerfile, docker/prometheus/Dockerfile,
+# docker/alertmanager/Dockerfile, docker/grafana/Dockerfile, and
+# docker/airflow/Dockerfile. Only named volumes (no host path involved) are
+# used for actual runtime state.
+
 x-common-env: &common-env
   KAFKA_BOOTSTRAP_SERVERS: kafka:9092
   KAFKA_TOPIC_TRANSACTIONS: transactions.raw
@@ -79,7 +92,13 @@ services:
 
   # --- Storage ---
   postgres:
-    image: postgres:16-alpine
+    # Custom image (docker/postgres/Dockerfile) bakes in sql/init.sql at
+    # build time instead of bind-mounting it -- see that Dockerfile's
+    # comment for why (host paths containing a colon break Docker
+    # Desktop's runtime bind-mount translation).
+    build:
+      context: .
+      dockerfile: docker/postgres/Dockerfile
     container_name: fraud-postgres
     environment:
       POSTGRES_DB: fraud_detection
@@ -89,13 +108,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      # Long-form (not host:container:ro) because the host path may contain
-      # a colon (e.g. a folder named "ai:ml project"), which the short-form
-      # string syntax misparses as extra host:container:mode fields.
-      - type: bind
-        source: ./sql/init.sql
-        target: /docker-entrypoint-initdb.d/init.sql
-        read_only: true
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fraud_admin -d fraud_detection"]
       interval: 5s
@@ -242,18 +254,15 @@ services:
     ports:
       - "9091:9091"
 
+  # Custom images (docker/prometheus, docker/alertmanager, docker/grafana)
+  # bake in their config/dashboards at build time instead of bind-mounting
+  # them -- see docker/postgres/Dockerfile's comment for why.
   prometheus:
-    image: prom/prometheus:v2.51.2
+    build:
+      context: .
+      dockerfile: docker/prometheus/Dockerfile
     container_name: fraud-prometheus
     volumes:
-      - type: bind
-        source: ./prometheus/prometheus.yml
-        target: /etc/prometheus/prometheus.yml
-        read_only: true
-      - type: bind
-        source: ./prometheus/alert_rules.yml
-        target: /etc/prometheus/alert_rules.yml
-        read_only: true
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
@@ -261,32 +270,23 @@ services:
       - alertmanager
 
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    build:
+      context: .
+      dockerfile: docker/alertmanager/Dockerfile
     container_name: fraud-alertmanager
-    volumes:
-      - type: bind
-        source: ./alertmanager/alertmanager.yml
-        target: /etc/alertmanager/alertmanager.yml
-        read_only: true
     ports:
       - "9093:9093"
 
   grafana:
-    image: grafana/grafana:10.4.2
+    build:
+      context: .
+      dockerfile: docker/grafana/Dockerfile
     container_name: fraud-grafana
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_AUTH_ANONYMOUS_ENABLED: "true"
     volumes:
-      - type: bind
-        source: ./grafana/provisioning
-        target: /etc/grafana/provisioning
-        read_only: true
-      - type: bind
-        source: ./grafana/dashboards
-        target: /var/lib/grafana/dashboards
-        read_only: true
       - grafana-data:/var/lib/grafana
     ports:
       - "3000:3000"
@@ -329,10 +329,6 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__WEBSERVER__SECRET_KEY: change_me_in_prod
     volumes:
-      - type: bind
-        source: ./dags
-        target: /opt/airflow/dags
-        read_only: true
       - airflow-logs:/opt/airflow/logs
     depends_on:
       airflow-postgres:
@@ -347,10 +343,6 @@ services:
     environment:
       <<: *airflow-env
     volumes:
-      - type: bind
-        source: ./dags
-        target: /opt/airflow/dags
-        read_only: true
       - airflow-logs:/opt/airflow/logs
     ports:
       - "8793:8080"
@@ -371,10 +363,6 @@ services:
     environment:
       <<: *airflow-env
     volumes:
-      - type: bind
-        source: ./dags
-        target: /opt/airflow/dags
-        read_only: true
       - airflow-logs:/opt/airflow/logs
     depends_on:
       airflow-init:
