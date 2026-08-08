@@ -165,7 +165,7 @@ Alertmanager, Pushgateway, kafka-exporter, Airflow (webserver + scheduler, its o
 metadata Postgres), and the producer/consumer application containers -- 20 services
 total (`docker compose config --services` to list them all).
 
-- Spark UI: http://localhost:8080 &nbsp;·&nbsp; MLflow UI: http://localhost:5000
+- Spark UI: http://localhost:8080 &nbsp;·&nbsp; MLflow UI: http://localhost:5001 (host port 5001, not 5000 -- macOS's AirPlay Receiver claims 5000 by default)
 - Fraud API docs (Swagger): http://localhost:8090/docs &nbsp;·&nbsp; health: `/health`
   (host port 8090, not 8080 -- Spark's UI already owns 8080; the container itself
   still listens on 8080 internally, so `FRAUD_API_BASE_URL=http://api:8080` inside

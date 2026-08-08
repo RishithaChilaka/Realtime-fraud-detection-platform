@@ -56,7 +56,14 @@ class Settings(BaseSettings):
     prometheus_port: int = 8000
 
     # --- Phase 2: MLflow ---
-    mlflow_tracking_uri: str = "http://localhost:5000"
+    # Host-side default for running scripts outside Docker (e.g. against a
+    # locally running `docker compose up` stack). Port 5001, not 5000 --
+    # see docker-compose.yml's mlflow service comment (macOS AirPlay
+    # Receiver claims 5000 by default). Containerized services don't use
+    # this default; they get MLFLOW_TRACKING_URI=http://mlflow:5000
+    # (the in-network port, unaffected by the host mapping) from
+    # docker-compose.yml's x-common-env.
+    mlflow_tracking_uri: str = "http://localhost:5001"
     mlflow_experiment_name: str = "fraud-detection"
     mlflow_xgboost_model_name: str = "fraud_xgboost"
     mlflow_lightgbm_model_name: str = "fraud_lightgbm"

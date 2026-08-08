@@ -175,7 +175,13 @@ services:
     volumes:
       - mlflow-data:/mlflow
     ports:
-      - "5000:5000"
+      # Host port 5001, not 5000: macOS's built-in AirPlay Receiver listens
+      # on 5000 by default, so binding it here fails with "address already
+      # in use" on most Macs. The container still listens on 5000
+      # internally -- other services reach it at http://mlflow:5000 over
+      # the compose network, unaffected by this; only the host-side URL
+      # changes (http://localhost:5001).
+      - "5001:5000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000')"]
       interval: 10s
