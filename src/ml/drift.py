@@ -17,6 +17,7 @@ Rule of thumb thresholds (configurable, not hardcoded as gospel):
     > 0.25 major shift (this is the industry-standard PSI banding used
     in credit risk / fraud modeling).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -249,7 +250,8 @@ def push_drift_metrics(settings: "Settings", report: DriftReport) -> None:
         ).set(report.score_psi)
     if report.score_ks_p_value is not None:
         Gauge(
-            "fraud_drift_score_ks_p_value", "KS test p-value for the prediction score distribution",
+            "fraud_drift_score_ks_p_value",
+            "KS test p-value for the prediction score distribution",
             registry=registry,
         ).set(report.score_ks_p_value)
 

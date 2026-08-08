@@ -6,6 +6,7 @@ read `os.environ` directly. This keeps configuration a single, testable
 seam (Dependency Inversion: modules depend on `Settings`, not on the
 environment).
 """
+
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

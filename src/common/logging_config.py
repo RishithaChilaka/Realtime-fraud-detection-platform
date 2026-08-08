@@ -1,4 +1,5 @@
 """Structured logging setup shared by every service (producer, consumer, monitoring)."""
+
 import logging
 import sys
 

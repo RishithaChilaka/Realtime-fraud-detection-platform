@@ -2,6 +2,7 @@
 feedback. The Streamlit review UI is a thin client of these endpoints so
 every write to the case queue / feedback tables goes through one audited
 path, whether it comes from the UI or a script."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException

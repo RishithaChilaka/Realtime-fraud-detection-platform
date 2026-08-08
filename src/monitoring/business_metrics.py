@@ -15,6 +15,7 @@ a scraped long-running process. `dags/business_metrics_dag.py` runs this
 on a schedule (every 5 minutes); it can also be run ad hoc via
 `scripts/export_business_metrics.py`.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

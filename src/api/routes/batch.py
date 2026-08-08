@@ -12,6 +12,7 @@ Nothing here writes to PostgreSQL or Redis -- see `src/api/batch.py`'s
 module docstring for why an upload is scored as a one-off, throwaway
 analysis rather than treated like live traffic.
 """
+
 from __future__ import annotations
 
 import io
@@ -39,9 +40,21 @@ logger = configure_logging("batch_api")
 router = APIRouter(prefix="/batch", tags=["batch"])
 
 _CSV_COLUMNS = [
-    "transaction_id", "card_id", "user_id", "amount", "currency", "merchant_id",
-    "merchant_category", "transaction_type", "channel", "latitude", "longitude",
-    "country", "device_id", "ip_address", "event_time",
+    "transaction_id",
+    "card_id",
+    "user_id",
+    "amount",
+    "currency",
+    "merchant_id",
+    "merchant_category",
+    "transaction_type",
+    "channel",
+    "latitude",
+    "longitude",
+    "country",
+    "device_id",
+    "ip_address",
+    "event_time",
 ]
 
 

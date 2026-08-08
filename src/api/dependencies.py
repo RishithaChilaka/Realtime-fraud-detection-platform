@@ -1,5 +1,6 @@
 """FastAPI dependency wiring: pulls shared singletons (DB client, model
 state) off `app.state` rather than constructing them per-request."""
+
 from __future__ import annotations
 
 from fastapi import Request

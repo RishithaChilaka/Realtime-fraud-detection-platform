@@ -9,6 +9,7 @@ rather than being hand-written and left to go stale. `train.py` calls
 card a reviewer reads in `model_cards/` and the one attached to the MLflow
 run are always the same document.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone

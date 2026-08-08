@@ -14,6 +14,7 @@ reachable (e.g. this sandbox has no Docker) or if `testcontainers` isn't
 installed, so `pytest tests/unit` always works standalone while `pytest
 tests/integration` exercises the full stack in CI/local dev with Docker.
 """
+
 from __future__ import annotations
 
 import json
@@ -63,15 +64,14 @@ class TestKafkaToSparkToPostgres:
     def test_produced_transaction_is_validated_and_persisted(
         self, kafka_container, postgres_container, make_transaction
     ):
+        import fakeredis
         from confluent_kafka import Producer
 
         from src.common.config import Settings
-        from src.feature_engineering.spark_consumer import _process_partition_group
         from src.feature_engineering.feature_store import RedisFeatureStore
+        from src.feature_engineering.spark_consumer import _process_partition_group
         from src.storage.postgres_client import PostgresClient
         from src.storage.redis_client import RedisClient
-
-        import fakeredis
 
         settings = Settings(
             kafka_bootstrap_servers=kafka_container.get_bootstrap_server(),

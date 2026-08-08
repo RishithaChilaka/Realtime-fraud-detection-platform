@@ -2,6 +2,7 @@
 currently serving from the ML model or has degraded to rule-based
 fallback (surfaced here so this is visible to load balancers/Grafana, not
 just buried in logs)."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends

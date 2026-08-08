@@ -15,6 +15,7 @@ labeled edge cases that a fraud pipeline needs to be able to see:
 The generator is deterministic given a seed, which makes it usable both
 for live demo traffic and for reproducible integration tests.
 """
+
 from __future__ import annotations
 
 import random
@@ -43,14 +44,14 @@ _MERCHANT_CATEGORIES = [
 # (country, lat, lon) anchor points used to build "home" locations and to
 # pick a deliberately distant location for impossible-travel edge cases.
 _GEO_ANCHORS = [
-    ("US", 37.7749, -122.4194),   # San Francisco
-    ("US", 40.7128, -74.0060),    # New York
-    ("GB", 51.5074, -0.1278),     # London
-    ("DE", 52.5200, 13.4050),     # Berlin
-    ("JP", 35.6762, 139.6503),    # Tokyo
-    ("AU", -33.8688, 151.2093),   # Sydney
-    ("BR", -23.5505, -46.6333),   # Sao Paulo
-    ("ZA", -26.2041, 28.0473),    # Johannesburg
+    ("US", 37.7749, -122.4194),  # San Francisco
+    ("US", 40.7128, -74.0060),  # New York
+    ("GB", 51.5074, -0.1278),  # London
+    ("DE", 52.5200, 13.4050),  # Berlin
+    ("JP", 35.6762, 139.6503),  # Tokyo
+    ("AU", -33.8688, 151.2093),  # Sydney
+    ("BR", -23.5505, -46.6333),  # Sao Paulo
+    ("ZA", -26.2041, 28.0473),  # Johannesburg
 ]
 
 
@@ -103,9 +104,7 @@ class TransactionGenerator:
             device_ids=[f"device_{uuid.uuid4().hex[:10]}" for _ in range(self._rng.randint(1, 3))],
         )
 
-    def _normal_transaction(
-        self, profile: CardholderProfile, event_time: datetime
-    ) -> Transaction:
+    def _normal_transaction(self, profile: CardholderProfile, event_time: datetime) -> Transaction:
         amount = max(1.0, self._rng.gauss(profile.typical_amount_mean, profile.typical_amount_std))
         return Transaction(
             transaction_id=f"txn_{uuid.uuid4().hex}",

@@ -5,6 +5,7 @@ SHAP doesn't apply; the response falls back to `explanation_type="rule_based"`
 and surfaces which rule(s) fired instead of feature attributions, so the
 endpoint degrades gracefully rather than erroring out.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends

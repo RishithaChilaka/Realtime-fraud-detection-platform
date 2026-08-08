@@ -7,6 +7,7 @@ the Spark consumer validates against the equivalent Spark schema
 (`spark_transaction_schema`) so both ends of the pipeline agree on shape
 and constraints even though they run in different processes/runtimes.
 """
+
 from __future__ import annotations
 
 import enum
@@ -14,13 +15,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
-from pyspark.sql.types import (
-    DoubleType,
-    StringType,
-    StructField,
-    StructType,
-    TimestampType,
-)
+from pyspark.sql.types import DoubleType, StringType, StructField, StructType, TimestampType
 
 
 class TransactionType(str, enum.Enum):

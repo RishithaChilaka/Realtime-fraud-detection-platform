@@ -21,6 +21,7 @@ per-card transaction sequences produces much more meaningful rolling-window
 features (velocity, amount z-score, impossible travel) than scoring each
 row in isolation would.
 """
+
 from __future__ import annotations
 
 import io
@@ -112,7 +113,9 @@ def parse_transactions_csv(content: bytes) -> tuple[list[Transaction], list[RowE
             row["longitude"] = float(row["longitude"]) if row.get("longitude") is not None else None
             if row.get("is_simulated_fraud") is not None:
                 row["is_simulated_fraud"] = str(row["is_simulated_fraud"]).strip().lower() in (
-                    "true", "1", "yes",
+                    "true",
+                    "1",
+                    "yes",
                 )
             txn = Transaction(**row)
             transactions.append(txn)
@@ -276,7 +279,10 @@ def build_dashboard_payload(
                 "model_name": state.model_name,
                 "model_version": state.model_version,
                 "model_type": "Classification",
-                "precision": None, "recall": None, "f1": None, "roc_auc": None,
+                "precision": None,
+                "recall": None,
+                "f1": None,
+                "roc_auc": None,
             }
     else:
         model_performance = {
@@ -284,7 +290,10 @@ def build_dashboard_payload(
             "model_name": state.fallback.MODEL_NAME,
             "model_version": state.fallback.MODEL_VERSION,
             "model_type": "Rule-based",
-            "precision": None, "recall": None, "f1": None, "roc_auc": None,
+            "precision": None,
+            "recall": None,
+            "f1": None,
+            "roc_auc": None,
         }
 
     return {

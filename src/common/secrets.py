@@ -23,6 +23,7 @@ The blob shape this reads matches
 `secret_string` exactly: one JSON object under one secret ID, not one
 secret per credential (fewer `GetSecretValue` calls at cold start).
 """
+
 from __future__ import annotations
 
 import json

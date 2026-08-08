@@ -12,6 +12,7 @@ in the `model_approvals` Postgres table (see
 requirement: the audit trail is the source of truth, MLflow's stage is a
 downstream effect of it.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -10,6 +10,7 @@ builds valid `Transaction` instances) but the validate-then-publish step
 is kept explicit so this producer is safe to reuse with any upstream
 source, including a future real transaction feed.
 """
+
 from __future__ import annotations
 
 import json

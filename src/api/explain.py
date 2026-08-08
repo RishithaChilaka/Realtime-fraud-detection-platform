@@ -9,6 +9,7 @@ for a single-row explanation. The explainer is built once, at model-load
 time (`ShapExplainer.__init__`), and reused across requests; building a
 fresh explainer per request would dominate the latency budget.
 """
+
 from __future__ import annotations
 
 import time

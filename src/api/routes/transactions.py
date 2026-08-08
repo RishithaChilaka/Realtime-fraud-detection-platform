@@ -2,6 +2,7 @@
 transaction. Exists so the review UI can re-hydrate a flagged case's full
 transaction payload (the review queue only stores the score, not the raw
 event) in order to call `/explain` on it."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException

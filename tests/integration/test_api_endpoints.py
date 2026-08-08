@@ -13,6 +13,7 @@ dependency set (xgboost, shap, fastapi, testcontainers[redis]). Skipped
 automatically if Docker isn't reachable, same pattern as
 tests/integration/test_pipeline.py.
 """
+
 from __future__ import annotations
 
 import numpy as np

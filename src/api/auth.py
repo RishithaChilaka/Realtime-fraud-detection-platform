@@ -25,6 +25,7 @@ real identity provider. It is explicitly not production-ready -- see the
 big warning below and the README's security section, which points at AWS
 Cognito / an OIDC provider as the real replacement.
 """
+
 from __future__ import annotations
 
 import time

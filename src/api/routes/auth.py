@@ -1,6 +1,7 @@
 """POST /auth/token -- exchange demo credentials for a role-scoped JWT.
 See src/api/auth.py's module docstring for the (explicit, documented)
 limitations of the demo user store this issues tokens against."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends

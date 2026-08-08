@@ -10,6 +10,7 @@ parallel "shadow" implementation to drift out of sync.
 Given a card's recent transaction history plus the incoming transaction,
 `compute_features` returns the feature vector a fraud model would score.
 """
+
 from __future__ import annotations
 
 import math

@@ -21,6 +21,7 @@ processor) and to any free-text fields callers choose to build with
 might otherwise echo a raw identifier into a less-tightly-controlled log
 aggregation system.
 """
+
 from __future__ import annotations
 
 import hashlib

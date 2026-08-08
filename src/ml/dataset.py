@@ -15,6 +15,7 @@ This is obviously a simplification versus real historical transaction
 data with real analyst-confirmed fraud labels; see the model card
 ("Known Limitations") for that caveat.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

@@ -14,6 +14,7 @@ Both models are evaluated on the same untouched, non-resampled test split,
 so their metrics are directly comparable and reflect real-world class
 balance.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -24,7 +25,6 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from imblearn.over_sampling import SMOTE
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     average_precision_score,
     confusion_matrix,
@@ -33,6 +33,7 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
+from sklearn.model_selection import train_test_split
 
 from src.common.config import Settings, get_settings
 from src.common.logging_config import configure_logging
@@ -87,8 +88,7 @@ def _log_confusion_matrix(
     y_pred = (y_prob >= threshold).astype(int)
     cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
     text = (
-        "Confusion matrix (rows=actual, cols=predicted, labels=[legit, fraud])\n"
-        f"{cm.tolist()}\n"
+        "Confusion matrix (rows=actual, cols=predicted, labels=[legit, fraud])\n" f"{cm.tolist()}\n"
     )
     mlflow.log_text(text, artifact_name)
 

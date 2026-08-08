@@ -5,6 +5,7 @@ Kept in one module so `prometheus.yml` scrape configs and Grafana
 dashboards can rely on a stable, documented metric name set instead of
 metrics being scattered ad-hoc through the codebase.
 """
+
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 # --- Producer metrics ---

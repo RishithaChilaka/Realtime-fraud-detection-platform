@@ -1,5 +1,6 @@
 """Thin, connection-pooled Redis client wrapper used by the feature store
 and by any future session-state consumers."""
+
 from __future__ import annotations
 
 from typing import Optional

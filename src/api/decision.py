@@ -16,12 +16,13 @@ Policy:
   - risk=high or risk=medium are also routed to review (a `block` decision
     still creates a case so an analyst can override a false positive).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.common.config import Settings
 from src.api.schemas import Decision, RiskLevel
+from src.common.config import Settings
 
 
 @dataclass(frozen=True)

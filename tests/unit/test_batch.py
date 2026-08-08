@@ -10,8 +10,8 @@ import pytest
 from src.api.batch import (
     RowError,
     ScoredTransaction,
-    build_dashboard_payload,
     bucket_timeseries,
+    build_dashboard_payload,
     parse_transactions_csv,
     score_batch,
 )
@@ -30,18 +30,43 @@ CSV_HEADER = (
 
 def _csv_row(**overrides) -> str:
     defaults = dict(
-        transaction_id="txn_1", card_id="card_1", user_id="user_1", amount="50.00",
-        currency="USD", merchant_id="merchant_1", merchant_category="grocery",
-        transaction_type="purchase", channel="in_store", latitude="37.7749",
-        longitude="-122.4194", country="US", device_id="device_1",
-        ip_address="203.0.113.5", event_time="2026-08-06T12:00:00Z",
+        transaction_id="txn_1",
+        card_id="card_1",
+        user_id="user_1",
+        amount="50.00",
+        currency="USD",
+        merchant_id="merchant_1",
+        merchant_category="grocery",
+        transaction_type="purchase",
+        channel="in_store",
+        latitude="37.7749",
+        longitude="-122.4194",
+        country="US",
+        device_id="device_1",
+        ip_address="203.0.113.5",
+        event_time="2026-08-06T12:00:00Z",
     )
     defaults.update(overrides)
-    return ",".join(str(defaults[k]) for k in [
-        "transaction_id", "card_id", "user_id", "amount", "currency", "merchant_id",
-        "merchant_category", "transaction_type", "channel", "latitude", "longitude",
-        "country", "device_id", "ip_address", "event_time",
-    ])
+    return ",".join(
+        str(defaults[k])
+        for k in [
+            "transaction_id",
+            "card_id",
+            "user_id",
+            "amount",
+            "currency",
+            "merchant_id",
+            "merchant_category",
+            "transaction_type",
+            "channel",
+            "latitude",
+            "longitude",
+            "country",
+            "device_id",
+            "ip_address",
+            "event_time",
+        ]
+    )
 
 
 @pytest.fixture
@@ -113,9 +138,12 @@ class TestParseTransactionsCsv:
     def test_skips_malformed_row_and_reports_row_number(self):
         content = (
             CSV_HEADER
-            + _csv_row() + "\n"
-            + _csv_row(transaction_id="txn_bad", amount="not_a_number") + "\n"
-            + _csv_row(transaction_id="txn_3") + "\n"
+            + _csv_row()
+            + "\n"
+            + _csv_row(transaction_id="txn_bad", amount="not_a_number")
+            + "\n"
+            + _csv_row(transaction_id="txn_3")
+            + "\n"
         ).encode()
 
         transactions, row_errors, rows_in_file = parse_transactions_csv(content)
@@ -144,7 +172,8 @@ class TestScoreBatch:
         # trigger on the later transactions.
         txns = [
             make_transaction(
-                transaction_id=f"txn_{i}", card_id="card_burst",
+                transaction_id=f"txn_{i}",
+                card_id="card_burst",
                 event_time=BASE_TIME + timedelta(seconds=i * 10),
             )
             for i in range(12)
@@ -174,7 +203,8 @@ class TestScoreBatch:
         # card A's history.
         burst = [
             make_transaction(
-                transaction_id=f"txn_a_{i}", card_id="card_a",
+                transaction_id=f"txn_a_{i}",
+                card_id="card_a",
                 event_time=BASE_TIME + timedelta(seconds=i * 10),
             )
             for i in range(12)
@@ -192,9 +222,14 @@ class TestBucketTimeseries:
     def _scored(self, event_time, routed_to_review, make_transaction, fallback_state, settings):
         txn = make_transaction(event_time=event_time)
         return ScoredTransaction(
-            txn=txn, fraud_score=0.5, risk_level="medium", decision="review",
-            routed_to_review=routed_to_review, model_source="fallback_rules",
-            reason_tag="none", reason_label="No signal",
+            txn=txn,
+            fraud_score=0.5,
+            risk_level="medium",
+            decision="review",
+            routed_to_review=routed_to_review,
+            model_source="fallback_rules",
+            reason_tag="none",
+            reason_label="No signal",
         )
 
     def test_buckets_span_the_files_own_time_range(
@@ -219,26 +254,64 @@ class TestBuildDashboardPayload:
     def _row(self, make_transaction, *, amount, decision, routed, reason_tag, reason_label, score):
         txn = make_transaction(amount=amount)
         return ScoredTransaction(
-            txn=txn, fraud_score=score, risk_level="high" if decision == "block" else "medium",
-            decision=decision, routed_to_review=routed, model_source="fallback_rules",
-            reason_tag=reason_tag, reason_label=reason_label,
+            txn=txn,
+            fraud_score=score,
+            risk_level="high" if decision == "block" else "medium",
+            decision=decision,
+            routed_to_review=routed,
+            model_source="fallback_rules",
+            reason_tag=reason_tag,
+            reason_label=reason_label,
         )
 
     def test_kpi_math_and_reason_breakdown(self, fallback_state, settings, make_transaction):
         scored = [
-            self._row(make_transaction, amount=100.0, decision="block", routed=True,
-                      reason_tag="high_velocity", reason_label="High velocity", score=0.95),
-            self._row(make_transaction, amount=200.0, decision="block", routed=True,
-                      reason_tag="high_velocity", reason_label="High velocity", score=0.91),
-            self._row(make_transaction, amount=50.0, decision="review", routed=True,
-                      reason_tag="amount_outlier", reason_label="Amount outlier", score=0.5),
-            self._row(make_transaction, amount=10.0, decision="approve", routed=False,
-                      reason_tag="none", reason_label="No signal", score=0.05),
+            self._row(
+                make_transaction,
+                amount=100.0,
+                decision="block",
+                routed=True,
+                reason_tag="high_velocity",
+                reason_label="High velocity",
+                score=0.95,
+            ),
+            self._row(
+                make_transaction,
+                amount=200.0,
+                decision="block",
+                routed=True,
+                reason_tag="high_velocity",
+                reason_label="High velocity",
+                score=0.91,
+            ),
+            self._row(
+                make_transaction,
+                amount=50.0,
+                decision="review",
+                routed=True,
+                reason_tag="amount_outlier",
+                reason_label="Amount outlier",
+                score=0.5,
+            ),
+            self._row(
+                make_transaction,
+                amount=10.0,
+                decision="approve",
+                routed=False,
+                reason_tag="none",
+                reason_label="No signal",
+                score=0.05,
+            ),
         ]
 
         payload = build_dashboard_payload(
-            state=fallback_state, settings=settings, scored=scored,
-            row_errors=[], rows_in_file=4, truncated=False, model_metrics=None,
+            state=fallback_state,
+            settings=settings,
+            scored=scored,
+            row_errors=[],
+            rows_in_file=4,
+            truncated=False,
+            model_metrics=None,
         )
 
         kpis = payload["kpis"]
@@ -263,8 +336,13 @@ class TestBuildDashboardPayload:
         self, fallback_state, settings, make_transaction
     ):
         payload = build_dashboard_payload(
-            state=fallback_state, settings=settings, scored=[], row_errors=[],
-            rows_in_file=0, truncated=False, model_metrics=None,
+            state=fallback_state,
+            settings=settings,
+            scored=[],
+            row_errors=[],
+            rows_in_file=0,
+            truncated=False,
+            model_metrics=None,
         )
 
         assert payload["model_performance"]["source"] == "fallback_active"
@@ -273,8 +351,12 @@ class TestBuildDashboardPayload:
         self, ml_state, settings, make_transaction
     ):
         payload = build_dashboard_payload(
-            state=ml_state, settings=settings, scored=[], row_errors=[],
-            rows_in_file=0, truncated=False,
+            state=ml_state,
+            settings=settings,
+            scored=[],
+            row_errors=[],
+            rows_in_file=0,
+            truncated=False,
             model_metrics={"precision": 0.96, "recall": 0.93, "f1": 0.94, "roc_auc": 0.97},
         )
 

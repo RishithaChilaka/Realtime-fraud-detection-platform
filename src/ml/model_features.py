@@ -9,6 +9,7 @@ seam is what prevents train/serve skew -- if this function changes, both
 paths pick it up automatically instead of two hand-maintained
 implementations drifting apart.
 """
+
 from __future__ import annotations
 
 from typing import Any

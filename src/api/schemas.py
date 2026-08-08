@@ -1,4 +1,5 @@
 """Request/response contracts for the FastAPI inference service."""
+
 from __future__ import annotations
 
 from typing import Literal, Optional

@@ -8,6 +8,7 @@ the rule-based fallback, and shared clients. Building these per-request
 would blow the latency budget; building them once and reusing them across
 requests is what makes the <100ms p95 / <50ms SHAP targets achievable.
 """
+
 from __future__ import annotations
 
 import time

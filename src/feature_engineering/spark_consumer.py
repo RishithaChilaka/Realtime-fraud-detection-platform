@@ -22,6 +22,7 @@ card, which is awkward to express as a single windowed aggregate but is
 straightforward once each micro-batch is grouped by card_id and processed
 with the shared, unit-tested `features.compute_features` function.
 """
+
 from __future__ import annotations
 
 from typing import Optional

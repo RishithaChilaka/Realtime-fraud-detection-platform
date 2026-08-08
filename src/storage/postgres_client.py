@@ -6,6 +6,7 @@ functions (`persist_transactions`, `write_audit_log`) instead of leaking
 SQLAlchemy Session objects into calling code. This keeps the storage
 concern isolated (Single Responsibility) and easy to mock in tests.
 """
+
 from __future__ import annotations
 
 from contextlib import contextmanager

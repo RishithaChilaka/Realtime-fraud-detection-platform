@@ -4,19 +4,13 @@ Kept separate from `postgres_client.py` (connection/session management) so
 the schema can be imported by Alembic migrations, the Spark JDBC sink, and
 tests without pulling in a live engine.
 """
+
 from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    DateTime,
-    Float,
-    Index,
-    String,
-)
+from sqlalchemy import JSON, Boolean, DateTime, Float, Index, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -51,9 +45,7 @@ class TransactionRecord(Base):
     )
     is_simulated_fraud: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    __table_args__ = (
-        Index("ix_transactions_card_event_time", "card_id", "event_time"),
-    )
+    __table_args__ = (Index("ix_transactions_card_event_time", "card_id", "event_time"),)
 
 
 class AuditLogRecord(Base):

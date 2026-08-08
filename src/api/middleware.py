@@ -2,6 +2,7 @@
 logging. Kept separate from route handlers so every endpoint (present and
 future) is covered automatically instead of relying on each handler to
 remember to instrument itself."""
+
 from __future__ import annotations
 
 import time

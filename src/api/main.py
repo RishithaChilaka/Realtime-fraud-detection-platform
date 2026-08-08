@@ -7,6 +7,7 @@ the rule-based fallback -- see `inference.ModelState.reload`) and a
 them via `Depends` (see `dependencies.py`) instead of constructing new
 connections per request.
 """
+
 from __future__ import annotations
 
 import os

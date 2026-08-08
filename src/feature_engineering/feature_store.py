@@ -15,6 +15,7 @@ implements the minimal `get_features`/`write_features` surface Feast's
 online store also exposes), but for Phase 1 a direct Redis client keeps
 the dependency footprint and operational surface small.
 """
+
 from __future__ import annotations
 
 import json

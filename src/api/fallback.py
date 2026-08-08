@@ -19,6 +19,7 @@ richer -- but still fully explainable -- rule set:
   - implied travel speed between consecutive transactions being physically
     impossible (`features.is_impossible_travel`)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

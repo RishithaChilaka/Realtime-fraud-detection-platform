@@ -8,6 +8,7 @@ expresses in Pydantic) against a decoded row, so malformed-but-shape-valid
 records (e.g. a negative amount, an out-of-range latitude) are routed to
 the dead-letter topic/audit log instead of silently polluting features.
 """
+
 from __future__ import annotations
 
 from typing import Any
