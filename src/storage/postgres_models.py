@@ -98,7 +98,18 @@ class PredictionRecord(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )
 
-    __table_args__ = (Index("ix_predictions_transaction_id", "transaction_id"),)
+    # No __table_args__ index here: `transaction_id` above already has
+    # index=True, which auto-generates an index named
+    # ix_predictions_transaction_id. An explicit Index(...) with that same
+    # name used to also be declared here -- a genuine duplicate CREATE
+    # INDEX statement for the same name. Postgres rejected the second one
+    # as "already exists" and aborted the whole DDL transaction, which
+    # silently rolled back the CREATE TABLE that had just succeeded in the
+    # same transaction (create_all()'s per-table try/except caught the
+    # resulting ProgrammingError and logged it as a harmless duplicate,
+    # masking that the table itself never actually got committed) -- this
+    # was the real cause of "relation \"predictions\" does not exist"
+    # showing up later at INSERT time.
 
 
 class ReviewCaseRecord(Base):
