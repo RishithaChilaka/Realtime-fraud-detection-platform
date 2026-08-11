@@ -53,17 +53,28 @@ class PostgresClient:
         `create_all`'s checkfirst logic reliably skips tables that already
         exist, but has been observed to still attempt to (re)create an
         index that init.sql already created, which Postgres correctly
-        rejects as a duplicate object. That's not a real problem -- the
-        schema exists either way, which is the actual goal here -- so we
-        log it and move on instead of crashing service startup over it.
-        Any other database error still propagates normally."""
-        try:
-            Base.metadata.create_all(self.engine)
-        except ProgrammingError as exc:
-            if "already exists" in str(exc.orig):
-                logger.debug("schema_object_already_exists", detail=str(exc.orig))
-            else:
-                raise
+        rejects as a duplicate object.
+
+        Creating tables one at a time (rather than a single
+        `Base.metadata.create_all(self.engine)` call) matters here: that's
+        a single bulk operation from SQLAlchemy's perspective, so if any
+        one table/index in the middle raises "already exists", everything
+        after it in creation order silently never gets attempted at all --
+        caught a real integration test failure where an early "already
+        exists" swallowed the same way meant a *later* table never got
+        created on an otherwise-empty test database. Per-table try/except
+        means one duplicate-object error can't take out the rest of the
+        schema. Any other database error still propagates normally."""
+        for table in Base.metadata.sorted_tables:
+            try:
+                table.create(self.engine, checkfirst=True)
+            except ProgrammingError as exc:
+                if "already exists" in str(exc.orig):
+                    logger.debug(
+                        "schema_object_already_exists", table=table.name, detail=str(exc.orig)
+                    )
+                else:
+                    raise
 
     @contextmanager
     def session(self) -> Iterator[Session]:
