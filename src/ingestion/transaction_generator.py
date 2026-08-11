@@ -19,7 +19,6 @@ for live demo traffic and for reproducible integration tests.
 from __future__ import annotations
 
 import random
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Iterator, Optional
@@ -87,27 +86,37 @@ class TransactionGenerator:
         self.edge_case_ratio = edge_case_ratio
         self.profiles = [self._build_profile() for _ in range(num_cardholders)]
 
+    def _rand_hex(self, n_chars: int) -> str:
+        """Deterministic replacement for uuid.uuid4().hex[:n]. uuid4() always
+        draws from OS randomness (os.urandom) and is never reproducible, even
+        when this generator is constructed with a fixed seed -- which broke
+        the class's own documented "deterministic given a seed" guarantee
+        for every ID field (card_id, user_id, device_id, transaction_id).
+        Drawing hex digits from self._rng instead keeps them fully
+        deterministic for a given seed."""
+        return "".join(self._rng.choice("0123456789abcdef") for _ in range(n_chars))
+
     def _build_profile(self) -> CardholderProfile:
         country, lat, lon = self._rng.choice(_GEO_ANCHORS)
         # jitter the anchor so cardholders aren't all at the exact same point
         lat += self._rng.uniform(-0.5, 0.5)
         lon += self._rng.uniform(-0.5, 0.5)
         return CardholderProfile(
-            card_id=f"card_{uuid.uuid4().hex[:12]}",
-            user_id=f"user_{uuid.uuid4().hex[:12]}",
+            card_id=f"card_{self._rand_hex(12)}",
+            user_id=f"user_{self._rand_hex(12)}",
             home_country=country,
             home_lat=lat,
             home_lon=lon,
             typical_amount_mean=self._rng.uniform(15, 150),
             typical_amount_std=self._rng.uniform(5, 40),
             preferred_categories=self._rng.sample(_MERCHANT_CATEGORIES, k=3),
-            device_ids=[f"device_{uuid.uuid4().hex[:10]}" for _ in range(self._rng.randint(1, 3))],
+            device_ids=[f"device_{self._rand_hex(10)}" for _ in range(self._rng.randint(1, 3))],
         )
 
     def _normal_transaction(self, profile: CardholderProfile, event_time: datetime) -> Transaction:
         amount = max(1.0, self._rng.gauss(profile.typical_amount_mean, profile.typical_amount_std))
         return Transaction(
-            transaction_id=f"txn_{uuid.uuid4().hex}",
+            transaction_id=f"txn_{self._rand_hex(32)}",
             card_id=profile.card_id,
             user_id=profile.user_id,
             amount=round(amount, 2),
@@ -140,7 +149,7 @@ class TransactionGenerator:
         )
         second = first.model_copy(
             update={
-                "transaction_id": f"txn_{uuid.uuid4().hex}",
+                "transaction_id": f"txn_{self._rand_hex(32)}",
                 "latitude": far_lat,
                 "longitude": far_lon,
                 "country": far_country,
@@ -166,7 +175,7 @@ class TransactionGenerator:
         self, profile: CardholderProfile, event_time: datetime
     ) -> Transaction:
         txn = self._high_value_transaction(profile, event_time)
-        return txn.model_copy(update={"device_id": f"device_{uuid.uuid4().hex[:10]}"})
+        return txn.model_copy(update={"device_id": f"device_{self._rand_hex(10)}"})
 
     def stream(self, n: int, start_time: Optional[datetime] = None) -> Iterator[Transaction]:
         """Yield roughly `n` transactions (edge-case bursts may push the
